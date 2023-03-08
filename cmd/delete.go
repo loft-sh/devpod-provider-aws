@@ -48,7 +48,7 @@ func (cmd *DeleteCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, mac
 			return err
 		}
 	} else {
-		return errors.Errorf("No devpod instance found")
+		return errors.Errorf("No devpod instance %s found", providerAws.Config.MachineID)
 	}
 
 	return nil

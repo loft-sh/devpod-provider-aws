@@ -47,7 +47,7 @@ func (cmd *StartCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, mach
 			return err
 		}
 	} else {
-		return errors.Errorf("No stopped instance found")
+		return errors.Errorf("No stopped instance %s found", providerAws.Config.MachineID)
 	}
 
 	return nil
