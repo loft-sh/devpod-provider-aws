@@ -1,0 +1,387 @@
+package aws
+
+import (
+	"os"
+	"sort"
+
+	"github.com/loft-sh/devpod/pkg/client"
+	"github.com/loft-sh/devpod/pkg/log"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/loft-sh/devpod-provider-aws/pkg/options"
+	"github.com/loft-sh/devpod-provider-aws/pkg/ssh"
+	"github.com/pkg/errors"
+)
+
+func NewProvider(log log.Logger) (*AwsProvider, error) {
+
+	aws_access_key_id := os.Getenv("AWS_ACCESS_KEY_ID")
+	if len(aws_access_key_id) == 0 {
+		return nil, errors.Errorf("AWS_ACCESS_KEY_ID is not set.")
+	}
+	aws_secret_access_key := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if len(aws_secret_access_key) == 0 {
+		return nil, errors.Errorf("AWS_SECRET_ACCESS_KEY is not set.")
+	}
+
+	config, err := options.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	// create provider
+	provider := &AwsProvider{
+		Config:  config,
+		Session: sess,
+		Log:     log,
+	}
+	return provider, nil
+}
+
+type AwsProvider struct {
+	Config           *options.Options
+	Session          *session.Session
+	Log              log.Logger
+	WorkingDirectory string
+}
+
+func GetDefaultVPC(svc *ec2.EC2) (string, error) {
+	// Get a list of VPCs so we can associate the group with the first VPC.
+	result, err := svc.DescribeVpcs(nil)
+	if err != nil {
+		return "", err
+	}
+	if len(result.Vpcs) == 0 {
+		return "", errors.New("There are no VPCs to associate with")
+	}
+
+	return *result.Vpcs[0].VpcId, nil
+
+}
+
+func CreateDevpodSecurityGroup(sess *session.Session, vpc string) (string, error) {
+	var err error
+	svc := ec2.New(sess)
+
+	// We need a VPC to work, if it's not declared, we use the default one
+	if vpc == "" {
+		vpc, err = GetDefaultVPC(svc)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// Create the security group with the VPC, name, and description.
+	result, err := svc.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+		GroupName:   aws.String("devpod"),
+		Description: aws.String("Default Security Group for DevPod"),
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String("security-group"),
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String("devpod"),
+						Value: aws.String("devpod"),
+					},
+				},
+			},
+		},
+		VpcId: aws.String(vpc),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	groupID := *result.GroupId
+
+	// Add permissions to the security group
+	_, err = svc.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
+		GroupId: aws.String(groupID),
+		IpPermissions: []*ec2.IpPermission{
+			(&ec2.IpPermission{}).
+				SetIpProtocol("tcp").
+				SetFromPort(22).
+				SetToPort(22).
+				SetIpRanges([]*ec2.IpRange{
+					(&ec2.IpRange{}).
+						SetCidrIp("0.0.0.0/0"),
+				}),
+		},
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String("security-group-rule"),
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String("devpod"),
+						Value: aws.String("devpod-ingress"),
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return groupID, nil
+}
+
+func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
+	svc := ec2.New(sess)
+
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []*string{
+					aws.String(name),
+				},
+			},
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("pending,running,shutting-down,stopping,stopped"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeInstances(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort slice in order to have the newest result first
+	sort.Slice(result.Reservations[:], func(i, j int) bool {
+		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+	})
+
+	return result, nil
+}
+
+func GetDevpodStoppedInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
+	svc := ec2.New(sess)
+
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []*string{
+					aws.String(name),
+				},
+			},
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("stopped"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeInstances(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort slice in order to have the newest result first
+	sort.Slice(result.Reservations[:], func(i, j int) bool {
+		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+	})
+
+	return result, nil
+}
+
+func GetDevpodRunningInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
+	svc := ec2.New(sess)
+
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []*string{
+					aws.String(name),
+				},
+			},
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeInstances(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort slice in order to have the newest result first
+	sort.Slice(result.Reservations[:], func(i, j int) bool {
+		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+	})
+
+	return result, nil
+}
+
+func GetDevpodSecurityGroup(sess *session.Session) (*ec2.DescribeSecurityGroupsOutput, error) {
+	svc := ec2.New(sess)
+
+	input := &ec2.DescribeSecurityGroupsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []*string{
+					aws.String("devpod"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeSecurityGroups(input)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, error) {
+	svc := ec2.New(sess)
+
+	devpodSG, err := GetDevpodSecurityGroup(sess)
+	if err != nil {
+		return nil, err
+	}
+
+	volSizeI64 := int64(providerAws.Config.DiskSizeGB)
+
+	userData, err := ssh.GetInjectKeypairScript(providerAws.Config.MachineFolder)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: check for volumesize thing, t hardcodes the path, but the disk
+	// name depends on the AMI used, so not always /dev/xvda is the volume name.
+	result, err := svc.RunInstances(&ec2.RunInstancesInput{
+		ImageId:      aws.String(providerAws.Config.DiskImage),
+		InstanceType: aws.String(providerAws.Config.MachineType),
+		MinCount:     aws.Int64(1),
+		MaxCount:     aws.Int64(1),
+		SecurityGroupIds: []*string{
+			devpodSG.SecurityGroups[0].GroupId,
+		},
+		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+			{
+				DeviceName: aws.String("/dev/xvda"),
+				Ebs: &ec2.EbsBlockDevice{
+					VolumeSize: &volSizeI64,
+				},
+			},
+		},
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String("instance"),
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String("devpod"),
+						Value: aws.String(providerAws.Config.MachineID),
+					},
+				},
+			},
+		},
+		UserData: &userData,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func Start(sess *session.Session, instanceID *string) error {
+	svc := ec2.New(sess)
+
+	input := &ec2.StartInstancesInput{
+		InstanceIds: []*string{
+			instanceID,
+		},
+	}
+
+	_, err := svc.StartInstances(input)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func Stop(sess *session.Session, instanceID *string) error {
+	svc := ec2.New(sess)
+
+	input := &ec2.StopInstancesInput{
+		InstanceIds: []*string{
+			instanceID,
+		},
+	}
+
+	_, err := svc.StopInstances(input)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func Status(sess *session.Session, name string) (client.Status, error) {
+	result, err := GetDevpodInstance(sess, name)
+	if err != nil {
+		return client.StatusNotFound, err
+	}
+
+	if len(result.Reservations) == 0 {
+		return client.StatusNotFound, errors.Errorf("No devpod instance found")
+	}
+
+	status := result.Reservations[0].Instances[0].State.Name
+
+	if *status == "running" {
+		return client.StatusRunning, nil
+	} else if *status == "stopped" {
+		return client.StatusStopped, nil
+	} else if *status == "terminated" {
+		return client.StatusNotFound, nil
+	} else {
+		return client.StatusBusy, nil
+	}
+}
+
+func Delete(sess *session.Session, instanceID *string) error {
+	svc := ec2.New(sess)
+
+	input := &ec2.TerminateInstancesInput{
+		InstanceIds: []*string{
+			instanceID,
+		},
+	}
+
+	_, err := svc.TerminateInstances(input)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func Command() {
+}
