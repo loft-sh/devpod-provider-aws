@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	_ "embed"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
 	"github.com/loft-sh/devpod/pkg/log"
@@ -33,7 +32,7 @@ func NewCreateCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *CreateCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, log log.Logger) error {
+func (cmd *CreateCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
 	_, err := aws.Create(providerAws.Session, providerAws)
 	if err != nil {
 		return err

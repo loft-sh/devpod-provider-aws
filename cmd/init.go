@@ -34,27 +34,22 @@ func NewInitCmd() *cobra.Command {
 }
 
 // Run runs the init logic
-func (cmd *InitCmd) Run(ctx context.Context, provider *aws.AwsProvider, machine *provider.Machine, log log.Logger) error {
-
+func (cmd *InitCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
 	// Ensure DevPod security group is created
-	devpodSG, err := aws.GetDevpodSecurityGroup(provider.Session)
+	devpodSG, err := aws.GetDevpodSecurityGroup(providerAws.Session)
 	if err != nil {
 		return err
 	}
 
 	// It it is not created, do it
 	if len(devpodSG.SecurityGroups) == 0 {
-		log.Info("Devpod security group not found, creating...")
-		_, err = aws.CreateDevpodSecurityGroup(provider.Session, provider.Config.VpcId)
+		_, err = aws.CreateDevpodSecurityGroup(providerAws.Session, providerAws.Config.VpcID)
 		if err != nil {
 			return err
 		}
-
-	} else {
-		log.Info("Devpod security group found, skipping creation...")
 	}
 
-	_, err = ssh.GetPrivateKey(provider.Config.MachineFolder)
+	_, err = ssh.GetPrivateKey(providerAws.Config.MachineFolder)
 	if err != nil {
 		return err
 	}

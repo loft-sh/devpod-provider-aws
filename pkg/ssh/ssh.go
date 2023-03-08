@@ -20,7 +20,6 @@ var (
 	DevPodSSHPublicKeyFile  = "id_devpod_rsa.pub"
 )
 
-
 func NewClient(addr string, keyBytes []byte) (*ssh.Client, error) {
 	sshConfig, err := ConfigFromKeyBytes(keyBytes)
 	if err != nil {
@@ -49,10 +48,12 @@ func ConfigFromKeyBytes(keyBytes []byte) (*ssh.ClientConfig, error) {
 	}
 
 	clientConfig.Auth = append(clientConfig.Auth, ssh.PublicKeys(signer))
+
 	return clientConfig, nil
 }
 func GetPrivateKey(dir string) (string, error) {
 	privateKeyFile := filepath.Join(dir, DevPodSSHPrivateKeyFile)
+
 	err := prepareDir(dir)
 	if err != nil {
 		return "", err
@@ -69,6 +70,7 @@ func GetPrivateKey(dir string) (string, error) {
 
 func GetPublicKey(dir string) (string, error) {
 	publicKeyFile := filepath.Join(dir, DevPodSSHPublicKeyFile)
+
 	err := prepareDir(dir)
 	if err != nil {
 		return "", err
@@ -116,6 +118,7 @@ func prepareDir(dir string) error {
 	// check if key pair exists
 	privateKeyFile := filepath.Join(dir, DevPodSSHPrivateKeyFile)
 	publicKeyFile := filepath.Join(dir, DevPodSSHPublicKeyFile)
+
 	_, err = os.Stat(privateKeyFile)
 	if err != nil {
 		privateKey, pubKey, err := rsaKeyGen()
@@ -137,7 +140,7 @@ func prepareDir(dir string) error {
 	return nil
 }
 
-func rsaKeyGen() (privateKey string, publicKey string, err error) {
+func rsaKeyGen() (privateKey, publicKey string, err error) {
 	privateKeyRaw, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return "", "", errors.Errorf("generate private key: %v", err)
@@ -149,15 +152,17 @@ func rsaKeyGen() (privateKey string, publicKey string, err error) {
 	}, privateKeyRaw)
 }
 
-func generateKeys(block pem.Block, cp crypto.Signer) (privateKey string, publicKey string, err error) {
+func generateKeys(block pem.Block, cp crypto.Signer) (privateKey, publicKey string, err error) {
 	pkBytes := pem.EncodeToMemory(&block)
 	privateKey = string(pkBytes)
 
 	publicKeyRaw := cp.Public()
+
 	p, err := ssh.NewPublicKey(publicKeyRaw)
 	if err != nil {
 		return "", "", err
 	}
+
 	publicKey = string(ssh.MarshalAuthorizedKey(p))
 
 	return privateKey, publicKey, nil

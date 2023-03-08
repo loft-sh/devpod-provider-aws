@@ -34,16 +34,16 @@ func NewDeleteCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *DeleteCmd) Run(ctx context.Context, provider *aws.AwsProvider, machine *provider.Machine, log log.Logger) error {
-
-	instances, err := aws.GetDevpodInstance(provider.Session, provider.Config.MachineID)
+func (cmd *DeleteCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+	instances, err := aws.GetDevpodInstance(providerAws.Session, providerAws.Config.MachineID)
 	if err != nil {
 		return err
 	}
 
 	if len(instances.Reservations) > 0 {
-		targetId := instances.Reservations[0].Instances[0].InstanceId
-		err = aws.Delete(provider.Session, targetId)
+		targetID := instances.Reservations[0].Instances[0].InstanceId
+
+		err = aws.Delete(providerAws.Session, targetID)
 		if err != nil {
 			return err
 		}

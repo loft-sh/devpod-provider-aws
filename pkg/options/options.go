@@ -17,12 +17,12 @@ var (
 )
 
 type Options struct {
-	MachineID     string
-	MachineFolder string
-	MachineType   string
 	DiskImage     string
 	DiskSizeGB    int
-	VpcId         string
+	MachineFolder string
+	MachineID     string
+	MachineType   string
+	VpcID         string
 	Zone          string
 }
 
@@ -37,7 +37,7 @@ func ConfigFromEnv() (Options, error) {
 		DiskImage:   os.Getenv(AWS_AMI),
 		DiskSizeGB:  diskSize,
 		Zone:        os.Getenv(AWS_REGION),
-		VpcId:       os.Getenv(AWS_VPC_ID),
+		VpcID:       os.Getenv(AWS_VPC_ID),
 	}, nil
 }
 
@@ -45,6 +45,7 @@ func FromEnv() (*Options, error) {
 	retOptions := &Options{}
 
 	var err error
+
 	retOptions.MachineID, err = fromEnvOrError("MACHINE_ID")
 	if err != nil {
 		return nil, err
@@ -56,22 +57,27 @@ func FromEnv() (*Options, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	retOptions.MachineType, err = fromEnvOrError("AWS_INSTANCE_TYPE")
 	if err != nil {
 		return nil, err
 	}
+
 	retOptions.DiskImage, err = fromEnvOrError("AWS_AMI")
 	if err != nil {
 		return nil, err
 	}
+
 	diskSizeGB, err := fromEnvOrError("AWS_DISK_SIZE")
 	if err != nil {
 		return nil, err
 	}
+
 	retOptions.DiskSizeGB, err = strconv.Atoi(diskSizeGB)
 	if err != nil {
 		return nil, err
 	}
+
 	retOptions.Zone, err = fromEnvOrError("AWS_REGION")
 	if err != nil {
 		return nil, err

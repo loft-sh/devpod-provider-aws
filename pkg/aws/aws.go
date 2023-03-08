@@ -15,15 +15,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewProvider(log log.Logger) (*AwsProvider, error) {
-
-	aws_access_key_id := os.Getenv("AWS_ACCESS_KEY_ID")
-	if len(aws_access_key_id) == 0 {
-		return nil, errors.Errorf("AWS_ACCESS_KEY_ID is not set.")
+func NewProvider(logs log.Logger) (*AwsProvider, error) {
+	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	if awsAccessKeyID == "" {
+		return nil, errors.Errorf("AWS_ACCESS_KEY_ID is not set")
 	}
-	aws_secret_access_key := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if len(aws_secret_access_key) == 0 {
-		return nil, errors.Errorf("AWS_SECRET_ACCESS_KEY is not set.")
+
+	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if awsSecretAccessKey == "" {
+		return nil, errors.Errorf("AWS_SECRET_ACCESS_KEY is not set")
 	}
 
 	config, err := options.FromEnv()
@@ -39,8 +39,9 @@ func NewProvider(log log.Logger) (*AwsProvider, error) {
 	provider := &AwsProvider{
 		Config:  config,
 		Session: sess,
-		Log:     log,
+		Log:     logs,
 	}
+
 	return provider, nil
 }
 
@@ -57,16 +58,17 @@ func GetDefaultVPC(svc *ec2.EC2) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if len(result.Vpcs) == 0 {
 		return "", errors.New("There are no VPCs to associate with")
 	}
 
 	return *result.Vpcs[0].VpcId, nil
-
 }
 
 func CreateDevpodSecurityGroup(sess *session.Session, vpc string) (string, error) {
 	var err error
+
 	svc := ec2.New(sess)
 
 	// We need a VPC to work, if it's not declared, we use the default one
@@ -159,7 +161,7 @@ func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstanc
 	}
 
 	// Sort slice in order to have the newest result first
-	sort.Slice(result.Reservations[:], func(i, j int) bool {
+	sort.Slice(result.Reservations, func(i, j int) bool {
 		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
 	})
 
@@ -192,7 +194,7 @@ func GetDevpodStoppedInstance(sess *session.Session, name string) (*ec2.Describe
 	}
 
 	// Sort slice in order to have the newest result first
-	sort.Slice(result.Reservations[:], func(i, j int) bool {
+	sort.Slice(result.Reservations, func(i, j int) bool {
 		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
 	})
 
@@ -225,7 +227,7 @@ func GetDevpodRunningInstance(sess *session.Session, name string) (*ec2.Describe
 	}
 
 	// Sort slice in order to have the newest result first
-	sort.Slice(result.Reservations[:], func(i, j int) bool {
+	sort.Slice(result.Reservations, func(i, j int) bool {
 		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
 	})
 
@@ -355,13 +357,14 @@ func Status(sess *session.Session, name string) (client.Status, error) {
 
 	status := result.Reservations[0].Instances[0].State.Name
 
-	if *status == "running" {
+	switch {
+	case *status == "running":
 		return client.StatusRunning, nil
-	} else if *status == "stopped" {
+	case *status == "stopped":
 		return client.StatusStopped, nil
-	} else if *status == "terminated" {
+	case *status == "terminated":
 		return client.StatusNotFound, nil
-	} else {
+	default:
 		return client.StatusBusy, nil
 	}
 }

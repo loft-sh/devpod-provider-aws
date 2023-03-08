@@ -16,5 +16,6 @@ func NewAwsCmd() *cobra.Command {
 	awsCmd.AddCommand(NewStartCmd())
 	awsCmd.AddCommand(NewStopCmd())
 	awsCmd.AddCommand(NewStatusCmd())
+
 	return awsCmd
 }
