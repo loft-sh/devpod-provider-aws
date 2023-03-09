@@ -1,17 +1,17 @@
 name: aws
 version: ##VERSION##
 description: |-
-  DevPod on Google Cloud
+  DevPod on AWS Cloud
 options:
-  AWS_VPC_ID:
-    description: The vpc id to use.
-    required: true
   AWS_REGION:
     description: The aws cloud region to create the VM in. E.g. us-west-1
     required: true
+    command: printf "%s" "${AWS_DEFAULT_REGION:-$(aws configure get region)}" || true
   AWS_DISK_SIZE:
     description: The disk size to use.
     default: "40"
+  AWS_VPC_ID:
+    description: The vpc id to use.
  AWS_AMI:
     description: The disk image to use.
     default: ami-0735c191cf914754d
