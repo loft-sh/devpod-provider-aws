@@ -1,0 +1,69 @@
+name: aws
+version: ##VERSION##
+description: |-
+  DevPod on Google Cloud
+options:
+  AWS_VPC_ID:
+    description: The vpc id to use.
+    required: true
+  AWS_REGION:
+    description: The aws cloud region to create the VM in. E.g. us-west-1
+    required: true
+  AWS_DISK_SIZE:
+    description: The disk size to use.
+    default: "40"
+ AWS_AMI:
+    description: The disk image to use.
+    default: ami-0735c191cf914754d
+  AWS_INSTANCE_TYPE:
+    description: The machine type to use.
+    default: t2.micro
+  INACTIVITY_TIMEOUT:
+    description: If defined, will automatically stop the VM after the inactivity period.
+    default: 10m
+  INJECT_GIT_CREDENTIALS:
+    description: "If DevPod should inject git credentials into the remote host."
+    default: "true"
+  INJECT_DOCKER_CREDENTIALS:
+    description: "If DevPod should inject docker credentials into the remote host."
+    default: "true"
+  AGENT_PATH:
+    description: The path where to inject the DevPod agent to.
+    default: /var/lib/toolbox/devpod
+agent:
+  path: ${AGENT_PATH}
+  inactivityTimeout: ${INACTIVITY_TIMEOUT}
+  injectGitCredentials: ${INJECT_GIT_CREDENTIALS}
+  injectDockerCredentials: ${INJECT_DOCKER_CREDENTIALS}
+  exec:
+    shutdown: |-
+      shutdown -n now
+binaries:
+  AWS_PROVIDER:
+    - os: linux
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-amd64
+      checksum: ##CHECKSUM_LINUX_AMD64##
+    - os: linux
+      arch: arm64
+      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-arm64
+      checksum: ##CHECKSUM_LINUX_ARM64##
+    - os: darwin
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-darwin-amd64
+      checksum: ##CHECKSUM_DARWIN_AMD64##
+    - os: darwin
+      arch: arm64
+      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-darwin-arm64
+      checksum: ##CHECKSUM_DARWIN_ARM64##
+    - os: windows
+      arch: amd64
+      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-windows-amd64.exe
+      checksum: ##CHECKSUM_WINDOWS_AMD64##
+exec:
+  command: ${AWS_PROVIDER} command
+  create: ${AWS_PROVIDER} create
+  delete: ${AWS_PROVIDER} delete
+  start: ${AWS_PROVIDER} start
+  stop: ${AWS_PROVIDER} stop
+  status: ${AWS_PROVIDER} status
