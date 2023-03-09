@@ -6,10 +6,9 @@ import (
 	"os"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
-	"github.com/loft-sh/devpod-provider-aws/pkg/ssh"
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
-	devssh "github.com/loft-sh/devpod/pkg/ssh"
+	"github.com/loft-sh/devpod/pkg/ssh"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -44,7 +43,7 @@ func (cmd *CommandCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, ma
 	}
 
 	// get private key
-	privateKey, err := ssh.GetPrivateKey(providerAws.Config.MachineFolder)
+	privateKey, err := ssh.GetPrivateKeyRawBase(providerAws.Config.MachineFolder)
 	if err != nil {
 		return fmt.Errorf("load private key: %w", err)
 	}
@@ -65,12 +64,12 @@ func (cmd *CommandCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, ma
 	// get external address
 	externalIP := *instance.Reservations[0].Instances[0].PublicIpAddress
 
-	sshClient, err := ssh.NewClient(externalIP+":22", []byte(privateKey))
+	sshClient, err := ssh.NewSSHClient("devpod", externalIP+":22", privateKey)
 	if err != nil {
 		return errors.Wrap(err, "create ssh client")
 	}
 	defer sshClient.Close()
 
 	// run command
-	return devssh.Run(sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+	return ssh.Run(sshClient, command, os.Stdin, os.Stdout, os.Stderr)
 }

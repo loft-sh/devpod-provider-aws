@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
-	"github.com/loft-sh/devpod-provider-aws/pkg/ssh"
 
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
+	"github.com/loft-sh/devpod/pkg/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ func (cmd *InitCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machi
 		}
 	}
 
-	_, err = ssh.GetPrivateKey(providerAws.Config.MachineFolder)
+	_, err = ssh.GetPrivateKeyRawBase(providerAws.Config.MachineFolder)
 	if err != nil {
 		return err
 	}

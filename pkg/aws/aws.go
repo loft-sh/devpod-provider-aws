@@ -1,17 +1,18 @@
 package aws
 
 import (
+	"encoding/base64"
 	"os"
 	"sort"
 
 	"github.com/loft-sh/devpod/pkg/client"
 	"github.com/loft-sh/devpod/pkg/log"
+	"github.com/loft-sh/devpod/pkg/ssh"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
-	"github.com/loft-sh/devpod-provider-aws/pkg/ssh"
 	"github.com/pkg/errors"
 )
 
@@ -261,6 +262,35 @@ func GetDevpodSecurityGroup(sess *session.Session) (*ec2.DescribeSecurityGroupsO
 	return result, nil
 }
 
+func GetInjectKeypairScript(dir string) (string, error) {
+	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
+	if err != nil {
+		return "", err
+	}
+
+	publicKey, err := base64.StdEncoding.DecodeString(publicKeyBase)
+	if err != nil {
+		return "", err
+	}
+
+	resultScript := `#!/bin/sh
+useradd devpod -d /home/devpod
+mkdir -p /home/devpod
+if grep -q sudo /etc/groups; then
+	usermod -aG sudo devpod
+elif grep -q wheel /etc/groups; then
+	usermod -aG wheel devpod
+fi
+echo "devpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/91-devpod
+mkdir -p /home/devpod/.ssh
+echo "` + string(publicKey) + `" >> /home/devpod/.ssh/authorized_keys
+chmod 0700 /home/devpod/.ssh
+chmod 0600 /home/devpod/.ssh/authorized_keys
+chown -R devpod:devpod /home/devpod`
+
+	return base64.StdEncoding.EncodeToString([]byte(resultScript)), nil
+}
+
 func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, error) {
 	svc := ec2.New(sess)
 
@@ -271,7 +301,7 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 
 	volSizeI64 := int64(providerAws.Config.DiskSizeGB)
 
-	userData, err := ssh.GetInjectKeypairScript(providerAws.Config.MachineFolder)
+	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
 	if err != nil {
 		return nil, err
 	}

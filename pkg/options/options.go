@@ -80,7 +80,10 @@ func FromEnv() (*Options, error) {
 
 	retOptions.Zone, err = fromEnvOrError("AWS_REGION")
 	if err != nil {
-		return nil, err
+		retOptions.Zone, err = fromEnvOrError("AWS_DEFAULT_REGION")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return retOptions, nil
