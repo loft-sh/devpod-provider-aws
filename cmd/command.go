@@ -46,7 +46,7 @@ func (cmd *CommandCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, ma
 	// get private key
 	privateKey, err := ssh.GetPrivateKey(providerAws.Config.MachineFolder)
 	if err != nil {
-		return fmt.Errorf("load private key: %v", err)
+		return fmt.Errorf("load private key: %w", err)
 	}
 
 	// get instance

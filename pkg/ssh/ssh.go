@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var (
+const (
 	DevPodSSHPrivateKeyFile = "id_devpod_rsa"
 	DevPodSSHPublicKeyFile  = "id_devpod_rsa.pub"
 )
@@ -28,7 +28,7 @@ func NewClient(addr string, keyBytes []byte) (*ssh.Client, error) {
 
 	client, err := ssh.Dial("tcp", addr, sshConfig)
 	if err != nil {
-		return nil, fmt.Errorf("dial to %v failed: %v", addr, err)
+		return nil, fmt.Errorf("dial to %v failed: %w", addr, err)
 	}
 
 	return client, nil
@@ -140,7 +140,7 @@ func prepareDir(dir string) error {
 	return nil
 }
 
-func rsaKeyGen() (privateKey, publicKey string, err error) {
+func rsaKeyGen() (string, string, error) {
 	privateKeyRaw, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return "", "", errors.Errorf("generate private key: %v", err)
@@ -152,7 +152,10 @@ func rsaKeyGen() (privateKey, publicKey string, err error) {
 	}, privateKeyRaw)
 }
 
-func generateKeys(block pem.Block, cp crypto.Signer) (privateKey, publicKey string, err error) {
+func generateKeys(block pem.Block, cp crypto.Signer) (string, string, error) {
+	var privateKey string
+	var publicKey string
+
 	pkBytes := pem.EncodeToMemory(&block)
 	privateKey = string(pkBytes)
 

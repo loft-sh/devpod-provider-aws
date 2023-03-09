@@ -33,9 +33,14 @@ func NewCreateCmd() *cobra.Command {
 
 // Run runs the command logic
 func (cmd *CreateCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
-	_, err := aws.Create(providerAws.Session, providerAws)
+	// check that we don't already have an instance
+	_, err := aws.Status(providerAws.Session, providerAws.Config.MachineID)
 	if err != nil {
-		return err
+		// not found, let's create it
+		_, err := aws.Create(providerAws.Session, providerAws)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

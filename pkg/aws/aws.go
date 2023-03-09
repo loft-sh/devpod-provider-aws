@@ -149,7 +149,11 @@ func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstanc
 			{
 				Name: aws.String("instance-state-name"),
 				Values: []*string{
-					aws.String("pending,running,shutting-down,stopping,stopped"),
+					aws.String("pending"),
+					aws.String("running"),
+					aws.String("shutting-down"),
+					aws.String("stopped"),
+					aws.String("stopping"),
 				},
 			},
 		},
