@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
+	"github.com/loft-sh/devpod/pkg/client"
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
 	"github.com/spf13/cobra"
@@ -34,8 +35,8 @@ func NewCreateCmd() *cobra.Command {
 // Run runs the command logic
 func (cmd *CreateCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
 	// check that we don't already have an instance
-	_, err := aws.Status(providerAws.Session, providerAws.Config.MachineID)
-	if err != nil {
+	status, _ := aws.Status(providerAws.Session, providerAws.Config.MachineID)
+	if status == client.StatusNotFound {
 		// not found, let's create it
 		_, err := aws.Create(providerAws.Session, providerAws)
 		if err != nil {

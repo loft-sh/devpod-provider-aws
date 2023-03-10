@@ -62,6 +62,7 @@ binaries:
       path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-windows-amd64.exe
       checksum: ##CHECKSUM_WINDOWS_AMD64##
 exec:
+  init: ${AWS_PROVIDER} init
   command: ${AWS_PROVIDER} command
   create: ${AWS_PROVIDER} create
   delete: ${AWS_PROVIDER} delete

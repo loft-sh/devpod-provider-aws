@@ -55,6 +55,5 @@ func (cmd *StatusCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, mac
 	}
 
 	_, err = fmt.Fprint(os.Stdout, status)
-
 	return err
 }

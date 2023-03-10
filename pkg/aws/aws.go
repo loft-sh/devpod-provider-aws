@@ -386,7 +386,7 @@ func Status(sess *session.Session, name string) (client.Status, error) {
 	}
 
 	if len(result.Reservations) == 0 {
-		return client.StatusNotFound, errors.Errorf("No devpod instance found")
+		return client.StatusNotFound, nil
 	}
 
 	status := result.Reservations[0].Instances[0].State.Name
