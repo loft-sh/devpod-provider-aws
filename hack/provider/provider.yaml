@@ -12,7 +12,8 @@ options:
     default: "40"
   AWS_VPC_ID:
     description: The vpc id to use.
- AWS_AMI:
+    default: ""
+  AWS_AMI:
     description: The disk image to use.
     default: ami-0735c191cf914754d
   AWS_INSTANCE_TYPE:
