@@ -26,7 +26,12 @@ func NewInitCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -34,7 +39,12 @@ func NewInitCmd() *cobra.Command {
 }
 
 // Run runs the init logic
-func (cmd *InitCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+func (cmd *InitCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
 	// Ensure DevPod security group is created
 	devpodSG, err := aws.GetDevpodSecurityGroup(providerAws.Session)
 	if err != nil {

@@ -26,7 +26,12 @@ func NewDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -34,7 +39,12 @@ func NewDeleteCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *DeleteCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+func (cmd *DeleteCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
 	instances, err := aws.GetDevpodInstance(providerAws.Session, providerAws.Config.MachineID)
 	if err != nil {
 		return err

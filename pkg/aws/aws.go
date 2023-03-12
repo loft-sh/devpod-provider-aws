@@ -167,13 +167,18 @@ func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstanc
 
 	// Sort slice in order to have the newest result first
 	sort.Slice(result.Reservations, func(i, j int) bool {
-		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+		return result.Reservations[i].Instances[0].LaunchTime.After(
+			*result.Reservations[j].Instances[0].LaunchTime,
+		)
 	})
 
 	return result, nil
 }
 
-func GetDevpodStoppedInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
+func GetDevpodStoppedInstance(
+	sess *session.Session,
+	name string,
+) (*ec2.DescribeInstancesOutput, error) {
 	svc := ec2.New(sess)
 
 	input := &ec2.DescribeInstancesInput{
@@ -200,13 +205,18 @@ func GetDevpodStoppedInstance(sess *session.Session, name string) (*ec2.Describe
 
 	// Sort slice in order to have the newest result first
 	sort.Slice(result.Reservations, func(i, j int) bool {
-		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+		return result.Reservations[i].Instances[0].LaunchTime.After(
+			*result.Reservations[j].Instances[0].LaunchTime,
+		)
 	})
 
 	return result, nil
 }
 
-func GetDevpodRunningInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
+func GetDevpodRunningInstance(
+	sess *session.Session,
+	name string,
+) (*ec2.DescribeInstancesOutput, error) {
 	svc := ec2.New(sess)
 
 	input := &ec2.DescribeInstancesInput{
@@ -233,7 +243,9 @@ func GetDevpodRunningInstance(sess *session.Session, name string) (*ec2.Describe
 
 	// Sort slice in order to have the newest result first
 	sort.Slice(result.Reservations, func(i, j int) bool {
-		return result.Reservations[i].Instances[0].LaunchTime.After(*result.Reservations[j].Instances[0].LaunchTime)
+		return result.Reservations[i].Instances[0].LaunchTime.After(
+			*result.Reservations[j].Instances[0].LaunchTime,
+		)
 	})
 
 	return result, nil

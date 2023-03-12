@@ -28,7 +28,12 @@ func NewCommandCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -36,7 +41,12 @@ func NewCommandCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *CommandCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+func (cmd *CommandCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
 	command := os.Getenv("COMMAND")
 	if command == "" {
 		return fmt.Errorf("command environment variable is missing")
@@ -58,7 +68,10 @@ func (cmd *CommandCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, ma
 
 	// get external ip
 	if *instance.Reservations[0].Instances[0].PublicIpAddress == "" {
-		return fmt.Errorf("instance %s doesn't have an external nat ip", providerAws.Config.MachineID)
+		return fmt.Errorf(
+			"instance %s doesn't have an external nat ip",
+			providerAws.Config.MachineID,
+		)
 	}
 
 	// get external address

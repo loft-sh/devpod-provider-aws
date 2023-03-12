@@ -26,7 +26,12 @@ func NewStopCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -34,8 +39,16 @@ func NewStopCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *StopCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
-	instances, err := aws.GetDevpodRunningInstance(providerAws.Session, providerAws.Config.MachineID)
+func (cmd *StopCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
+	instances, err := aws.GetDevpodRunningInstance(
+		providerAws.Session,
+		providerAws.Config.MachineID,
+	)
 	if err != nil {
 		return err
 	}

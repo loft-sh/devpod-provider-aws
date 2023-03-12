@@ -92,7 +92,11 @@ func FromEnv() (*Options, error) {
 func fromEnvOrError(name string) (string, error) {
 	val := os.Getenv(name)
 	if val == "" {
-		return "", fmt.Errorf("couldn't find option %s in environment, please make sure %s is defined", name, name)
+		return "", fmt.Errorf(
+			"couldn't find option %s in environment, please make sure %s is defined",
+			name,
+			name,
+		)
 	}
 
 	return val, nil

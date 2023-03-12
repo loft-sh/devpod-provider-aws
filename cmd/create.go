@@ -24,7 +24,12 @@ func NewCreateCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -32,7 +37,12 @@ func NewCreateCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *CreateCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+func (cmd *CreateCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
 	_, err := aws.Create(providerAws.Session, providerAws)
 	if err != nil {
 		return err

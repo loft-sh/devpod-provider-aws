@@ -40,7 +40,12 @@ func NewStatusCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), awsProvider, provider.FromEnvironment(), log.Default)
+			return cmd.Run(
+				context.Background(),
+				awsProvider,
+				provider.FromEnvironment(),
+				log.Default,
+			)
 		},
 	}
 
@@ -48,7 +53,12 @@ func NewStatusCmd() *cobra.Command {
 }
 
 // Run runs the command logic
-func (cmd *StatusCmd) Run(ctx context.Context, providerAws *aws.AwsProvider, machine *provider.Machine, logs log.Logger) error {
+func (cmd *StatusCmd) Run(
+	ctx context.Context,
+	providerAws *aws.AwsProvider,
+	machine *provider.Machine,
+	logs log.Logger,
+) error {
 	status, err := aws.Status(providerAws.Session, providerAws.Config.MachineID)
 	if err != nil {
 		return err
