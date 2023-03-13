@@ -43,7 +43,21 @@ func (cmd *CreateCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	_, err := aws.Create(providerAws.Session, providerAws)
+	// Ensure DevPod security group is created
+	devpodSG, err := aws.GetDevpodSecurityGroup(providerAws.Session)
+	if err != nil {
+		return err
+	}
+
+	// It it is not created, do it
+	if len(devpodSG.SecurityGroups) == 0 {
+		_, err = aws.CreateDevpodSecurityGroup(providerAws.Session, providerAws.Config.VpcID)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = aws.Create(providerAws.Session, providerAws)
 	if err != nil {
 		return err
 	}

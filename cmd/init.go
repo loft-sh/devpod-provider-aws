@@ -45,21 +45,9 @@ func (cmd *InitCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	// Ensure DevPod security group is created
-	devpodSG, err := aws.GetDevpodSecurityGroup(providerAws.Session)
-	if err != nil {
-		return err
-	}
 
-	// It it is not created, do it
-	if len(devpodSG.SecurityGroups) == 0 {
-		_, err = aws.CreateDevpodSecurityGroup(providerAws.Session, providerAws.Config.VpcID)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = ssh.GetPrivateKeyRawBase(providerAws.Config.MachineFolder)
+	// Initialize ssh keys during init
+	_, err := ssh.GetPrivateKeyRawBase(providerAws.Config.MachineFolder)
 	if err != nil {
 		return err
 	}
