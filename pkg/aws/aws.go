@@ -32,9 +32,12 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 		return nil, err
 	}
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
+	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
-	}))
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	// create provider
 	provider := &AwsProvider{
