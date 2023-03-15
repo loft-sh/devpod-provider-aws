@@ -27,7 +27,7 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 		return nil, errors.Errorf("AWS_SECRET_ACCESS_KEY is not set")
 	}
 
-	config, err := options.FromEnv()
+	config, err := options.FromEnv(false)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +433,4 @@ func Delete(sess *session.Session, instanceID *string) error {
 	}
 
 	return err
-}
-
-func Command() {
 }

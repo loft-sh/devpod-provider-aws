@@ -41,22 +41,10 @@ func ConfigFromEnv() (Options, error) {
 	}, nil
 }
 
-func FromEnv() (*Options, error) {
+func FromEnv(init bool) (*Options, error) {
 	retOptions := &Options{}
 
 	var err error
-
-	retOptions.MachineID, err = fromEnvOrError("MACHINE_ID")
-	if err != nil {
-		return nil, err
-	}
-	// prefix with devpod-
-	retOptions.MachineID = "devpod-" + retOptions.MachineID
-
-	retOptions.MachineFolder, err = fromEnvOrError("MACHINE_FOLDER")
-	if err != nil {
-		return nil, err
-	}
 
 	retOptions.MachineType, err = fromEnvOrError("AWS_INSTANCE_TYPE")
 	if err != nil {
@@ -84,6 +72,23 @@ func FromEnv() (*Options, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Return eraly if we're just doing init
+	if init {
+		return retOptions, nil
+	}
+
+	retOptions.MachineID, err = fromEnvOrError("MACHINE_ID")
+	if err != nil {
+		return nil, err
+	}
+	// prefix with devpod-
+	retOptions.MachineID = "devpod-" + retOptions.MachineID
+
+	retOptions.MachineFolder, err = fromEnvOrError("MACHINE_FOLDER")
+	if err != nil {
+		return nil, err
 	}
 
 	return retOptions, nil

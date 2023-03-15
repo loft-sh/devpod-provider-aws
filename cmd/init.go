@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
+	"os"
 
-	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
-
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
-	"github.com/loft-sh/devpod/pkg/ssh"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -21,14 +22,9 @@ func NewInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Init account",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
-			if err != nil {
-				return err
-			}
 
 			return cmd.Run(
 				context.Background(),
-				awsProvider,
 				provider.FromEnvironment(),
 				log.Default,
 			)
@@ -41,13 +37,27 @@ func NewInitCmd() *cobra.Command {
 // Run runs the init logic
 func (cmd *InitCmd) Run(
 	ctx context.Context,
-	providerAws *aws.AwsProvider,
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
+	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	if awsAccessKeyID == "" {
+		return errors.Errorf("AWS_ACCESS_KEY_ID is not set")
+	}
 
-	// Initialize ssh keys during init
-	_, err := ssh.GetPrivateKeyRawBase(providerAws.Config.MachineFolder)
+	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if awsSecretAccessKey == "" {
+		return errors.Errorf("AWS_SECRET_ACCESS_KEY is not set")
+	}
+
+	_, err := options.FromEnv(true)
+	if err != nil {
+		return err
+	}
+
+	_, err = session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
 	if err != nil {
 		return err
 	}
