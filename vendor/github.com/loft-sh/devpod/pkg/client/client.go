@@ -13,17 +13,11 @@ type Client interface {
 	// Provider returns the name of the provider
 	Provider() string
 
-	// ProviderType returns the provider type
-	ProviderType() provider.ProviderType
-
 	// Context returns the context of the provider
 	Context() string
 
 	// RefreshOptions updates the options
 	RefreshOptions(ctx context.Context, userOptions []string) error
-
-	// Machine returns the machine of this client
-	Machine() string
 
 	// AgentPath returns the agent path
 	AgentPath() string
@@ -50,24 +44,30 @@ type Client interface {
 	Command(ctx context.Context, options CommandOptions) error
 }
 
+type MachineClient interface {
+	Client
+
+	// Machine returns the machine of this client
+	Machine() string
+
+	// MachineConfig returns the machine config
+	MachineConfig() *provider.Machine
+}
+
 type WorkspaceClient interface {
 	Client
 
 	// Workspace returns the workspace of this provider
 	Workspace() string
 
-	// WorkspaceConfig returns the workspace source
+	// WorkspaceConfig returns the workspace config
 	WorkspaceConfig() *provider.Workspace
-}
-
-type AgentClient interface {
-	WorkspaceClient
 
 	// AgentConfig returns the agent config to send to the agent
 	AgentConfig() provider.ProviderAgentConfig
 
 	// AgentInfo returns the info to send to the agent
-	AgentInfo() (string, error)
+	AgentInfo() (string, *provider.AgentWorkspaceInfo, error)
 }
 
 type InitOptions struct{}
