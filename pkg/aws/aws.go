@@ -2,6 +2,8 @@ package aws
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 
@@ -12,11 +14,43 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/pkg/errors"
 )
 
+type AwsToken struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string
+}
+
 func NewProvider(logs log.Logger) (*AwsProvider, error) {
+	awsToken := os.Getenv("AWS_TOKEN")
+	if awsToken != "" {
+		var tokenJSON AwsToken
+
+		err := json.Unmarshal([]byte(awsToken), &tokenJSON)
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Setenv("AWS_ACCESS_KEY_ID", tokenJSON.AccessKeyID)
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Setenv("AWS_SECRET_ACCESS_KEY", tokenJSON.SecretAccessKey)
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Setenv("AWS_SESSION_TOKEN", tokenJSON.SessionToken)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	if awsAccessKeyID == "" {
 		return nil, errors.Errorf("AWS_ACCESS_KEY_ID is not set")
@@ -28,6 +62,7 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 	}
 
 	config, err := options.FromEnv(false)
+
 	if err != nil {
 		return nil, err
 	}
@@ -433,4 +468,22 @@ func Delete(sess *session.Session, instanceID *string) error {
 	}
 
 	return err
+}
+
+func AccessToken(sess *session.Session) (string, error) {
+	svc := sts.New(sess)
+
+	token, err := svc.GetSessionToken(nil)
+	if err != nil {
+		return "", err
+	}
+
+	result := fmt.Sprintf(`{
+	"AccessKeyId": "%s",
+	"SecretAccessKey": "%s",
+	"SessionToken": "%s"
+}
+`, *token.Credentials.AccessKeyId, *token.Credentials.SecretAccessKey, *token.Credentials.SessionToken)
+
+	return result, nil
 }

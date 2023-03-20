@@ -31,20 +31,13 @@ options:
   AGENT_PATH:
     description: The path where to inject the DevPod agent to.
     default: /var/lib/toolbox/devpod
-  AWS_ACCESS_KEY_ID:
+  AWS_TOKEN:
     local: true
     hidden: true
     cache: 5m
-    description: "The AWS access key to use"
+    description: "The AWS auth token to use"
     command: |-
-      echo $AWS_ACCESS_KEY_ID
-  AWS_SECRET_ACCESS_KEY:
-    local: true
-    hidden: true
-    cache: 5m
-    description: "The AWS secret access key to use"
-    command: |-
-      echo $AWS_SECRET_ACCESS_KEY
+      ${AWS_PROVIDER} token
 agent:
   path: ${AGENT_PATH}
   inactivityTimeout: ${INACTIVITY_TIMEOUT}
