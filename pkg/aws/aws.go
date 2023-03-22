@@ -3,7 +3,6 @@ package aws
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"os"
 	"sort"
 
@@ -20,32 +19,32 @@ import (
 )
 
 type AwsToken struct {
-	AccessKeyID     string
-	SecretAccessKey string
-	SessionToken    string
+	AccessKeyID     string "json:AccessKeyId"
+	SecretAccessKey string "json:SecretAccessKey"
+	SessionToken    string "json:SessionToken"
 }
 
 func NewProvider(logs log.Logger) (*AwsProvider, error) {
 	awsToken := os.Getenv("AWS_TOKEN")
 	if awsToken != "" {
-		var tokenJSON AwsToken
+		var tokenJSON map[string]AwsToken
 
 		err := json.Unmarshal([]byte(awsToken), &tokenJSON)
 		if err != nil {
 			return nil, err
 		}
 
-		err = os.Setenv("AWS_ACCESS_KEY_ID", tokenJSON.AccessKeyID)
+		err = os.Setenv("AWS_ACCESS_KEY_ID", tokenJSON["Credentials"].AccessKeyID)
 		if err != nil {
 			return nil, err
 		}
 
-		err = os.Setenv("AWS_SECRET_ACCESS_KEY", tokenJSON.SecretAccessKey)
+		err = os.Setenv("AWS_SECRET_ACCESS_KEY", tokenJSON["Credentials"].SecretAccessKey)
 		if err != nil {
 			return nil, err
 		}
 
-		err = os.Setenv("AWS_SESSION_TOKEN", tokenJSON.SessionToken)
+		err = os.Setenv("AWS_SESSION_TOKEN", tokenJSON["Credentials"].SessionToken)
 		if err != nil {
 			return nil, err
 		}
@@ -471,6 +470,12 @@ func Delete(sess *session.Session, instanceID *string) error {
 }
 
 func AccessToken(sess *session.Session) (string, error) {
+	// If the user is logged via token, just forward it
+	awsToken := os.Getenv("AWS_TOKEN")
+	if awsToken != "" {
+		return awsToken, nil
+	}
+
 	svc := sts.New(sess)
 
 	token, err := svc.GetSessionToken(nil)
@@ -478,12 +483,7 @@ func AccessToken(sess *session.Session) (string, error) {
 		return "", err
 	}
 
-	result := fmt.Sprintf(`{
-	"AccessKeyId": "%s",
-	"SecretAccessKey": "%s",
-	"SessionToken": "%s"
-}
-`, *token.Credentials.AccessKeyId, *token.Credentials.SecretAccessKey, *token.Credentials.SessionToken)
+	result, err := json.Marshal(token)
 
-	return result, nil
+	return string(result), err
 }
