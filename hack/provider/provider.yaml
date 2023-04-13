@@ -2,6 +2,7 @@ name: aws
 version: ##VERSION##
 description: |-
   DevPod on AWS Cloud
+icon: https://www.vectorlogo.zone/logos/amazon_aws/amazon_aws-ar21.svg
 optionGroups:
   - options:
       - AGENT_PATH
