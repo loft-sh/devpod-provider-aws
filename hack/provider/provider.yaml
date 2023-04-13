@@ -2,8 +2,40 @@ name: aws
 version: ##VERSION##
 description: |-
   DevPod on AWS Cloud
+optionGroups:
+  - options:
+      - AGENT_PATH
+      - INACTIVITY_TIMEOUT
+      - INJECT_DOCKER_CREDENTIALS
+      - INJECT_GIT_CREDENTIALS
+    name: "Agent options"
+    defaultVisible: false
+  - options:
+      - AWS_AMI
+      - AWS_DISK_SIZE
+      - AWS_INSTANCE_TYPE
+    name: "AWS options"
+    defaultVisible: true
 options:
   AWS_REGION:
+    suggestions:
+      - ap-south-1
+      - eu-north-1
+      - eu-west-3
+      - eu-west-2
+      - eu-west-1
+      - ap-northeast-3
+      - ap-northeast-2
+      - ap-northeast-1
+      - ca-central-1
+      - sa-east-1
+      - ap-southeast-1
+      - ap-southeast-2
+      - eu-central-1
+      - us-east-1
+      - us-east-2
+      - us-west-1
+      - us-west-2
     description: The aws cloud region to create the VM in. E.g. us-west-1
     required: true
     command: printf "%s" "${AWS_DEFAULT_REGION:-$(aws configure get region)}" || true
