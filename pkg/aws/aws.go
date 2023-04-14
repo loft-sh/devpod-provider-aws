@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/loft-sh/devpod/pkg/client"
 	"github.com/loft-sh/devpod/pkg/log"
@@ -63,6 +64,14 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 		return nil, err
 	}
 
+	if config.DiskImage == "" {
+		image, err := GetDefaultAMI(sess)
+		if err != nil {
+			return nil, err
+		}
+		config.DiskImage = image
+	}
+
 	// create provider
 	provider := &AwsProvider{
 		Config:  config,
@@ -94,10 +103,11 @@ func GetDefaultVPC(svc *ec2.EC2) (string, error) {
 	return *result.Vpcs[0].VpcId, nil
 }
 
-func CreateDevpodSecurityGroup(sess *session.Session, vpc string) (string, error) {
+func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 	var err error
 
-	svc := ec2.New(sess)
+	svc := ec2.New(provider.Session)
+	vpc := provider.Config.VpcID
 
 	// We need a VPC to work, if it's not declared, we use the default one
 	if vpc == "" {
@@ -109,7 +119,7 @@ func CreateDevpodSecurityGroup(sess *session.Session, vpc string) (string, error
 
 	// Create the security group with the VPC, name, and description.
 	result, err := svc.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-		GroupName:   aws.String("devpod"),
+		GroupName:   aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
 		Description: aws.String("Default Security Group for DevPod"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -117,7 +127,7 @@ func CreateDevpodSecurityGroup(sess *session.Session, vpc string) (string, error
 				Tags: []*ec2.Tag{
 					{
 						Key:   aws.String("devpod"),
-						Value: aws.String("devpod"),
+						Value: aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
 					},
 				},
 			},
@@ -278,15 +288,15 @@ func GetDevpodRunningInstance(
 	return result, nil
 }
 
-func GetDevpodSecurityGroup(sess *session.Session) (*ec2.DescribeSecurityGroupsOutput, error) {
-	svc := ec2.New(sess)
+func GetDevpodSecurityGroup(provider *AwsProvider) (*ec2.DescribeSecurityGroupsOutput, error) {
+	svc := ec2.New(provider.Session)
 
 	input := &ec2.DescribeSecurityGroupsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: aws.String("tag:devpod"),
 				Values: []*string{
-					aws.String("devpod"),
+					aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
 				},
 			},
 		},
@@ -333,7 +343,7 @@ chown -R devpod:devpod /home/devpod`
 func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, error) {
 	svc := ec2.New(sess)
 
-	devpodSG, err := GetDevpodSecurityGroup(sess)
+	devpodSG, err := GetDevpodSecurityGroup(providerAws)
 	if err != nil {
 		return nil, err
 	}
@@ -345,8 +355,6 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 		return nil, err
 	}
 
-	// TODO: check for volumesize thing, t hardcodes the path, but the disk
-	// name depends on the AMI used, so not always /dev/xvda is the volume name.
 	result, err := svc.RunInstances(&ec2.RunInstancesInput{
 		ImageId:      aws.String(providerAws.Config.DiskImage),
 		InstanceType: aws.String(providerAws.Config.MachineType),
@@ -357,7 +365,7 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 		},
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			{
-				DeviceName: aws.String("/dev/xvda"),
+				DeviceName: aws.String("/dev/sda1"),
 				Ebs: &ec2.EbsBlockDevice{
 					VolumeSize: &volSizeI64,
 				},
@@ -457,6 +465,62 @@ func Delete(sess *session.Session, instanceID *string) error {
 	}
 
 	return err
+}
+
+func GetDefaultAMI(sess *session.Session) (string, error) {
+	svc := ec2.New(sess)
+	input := &ec2.DescribeImagesInput{
+		Owners: []*string{
+			aws.String("amazon"),
+			aws.String("self"),
+		},
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("virtualization-type"),
+				Values: []*string{
+					aws.String("hvm"),
+				},
+			},
+			{
+				Name: aws.String("root-device-type"),
+				Values: []*string{
+					aws.String("ebs"),
+				},
+			},
+			{
+				Name: aws.String("platform-details"),
+				Values: []*string{
+					aws.String("Linux/UNIX"),
+				},
+			},
+			{
+				Name: aws.String("description"),
+				Values: []*string{
+					aws.String("Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build*"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeImages(input)
+	if err != nil {
+		return "", err
+	}
+
+	// Sort by date, so we take the latest AMI available for Ubuntu 22.04
+	sort.Slice(result.Images, func(i, j int) bool {
+		iTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[i].CreationDate)
+		if err != nil {
+			return false
+		}
+		jTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[j].CreationDate)
+		if err != nil {
+			return false
+		}
+		return iTime.After(jTime)
+	})
+
+	return *result.Images[0].ImageId, nil
 }
 
 func AccessToken(sess *session.Session) (string, error) {

@@ -51,10 +51,7 @@ func FromEnv(init bool) (*Options, error) {
 		return nil, err
 	}
 
-	retOptions.DiskImage, err = fromEnvOrError("AWS_AMI")
-	if err != nil {
-		return nil, err
-	}
+	retOptions.DiskImage = os.Getenv("AWS_AMI")
 
 	diskSizeGB, err := fromEnvOrError("AWS_DISK_SIZE")
 	if err != nil {

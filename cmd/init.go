@@ -66,7 +66,7 @@ func (cmd *InitCmd) Run(
 		}
 	}
 
-	options, err := options.FromEnv(true)
+	config, err := options.FromEnv(true)
 	if err != nil {
 		return err
 	}
@@ -80,8 +80,13 @@ func (cmd *InitCmd) Run(
 
 	_, err = aws.GetDevpodRunningInstance(
 		session,
-		options.MachineID,
+		config.MachineID,
 	)
+	if err != nil {
+		return err
+	}
+
+	_, err = aws.GetDefaultAMI(session)
 	if err != nil {
 		return err
 	}
