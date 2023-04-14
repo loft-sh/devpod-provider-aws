@@ -50,16 +50,6 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 		}
 	}
 
-	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	if awsAccessKeyID == "" {
-		return nil, errors.Errorf("AWS_ACCESS_KEY_ID is not set")
-	}
-
-	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if awsSecretAccessKey == "" {
-		return nil, errors.Errorf("AWS_SECRET_ACCESS_KEY is not set")
-	}
-
 	config, err := options.FromEnv(false)
 
 	if err != nil {

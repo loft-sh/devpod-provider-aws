@@ -5,6 +5,8 @@ description: |-
 icon: https://www.vectorlogo.zone/logos/amazon_aws/amazon_aws-ar21.svg
 optionGroups:
   - options:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
       - AWS_AMI
       - AWS_DISK_SIZE
       - AWS_INSTANCE_TYPE
@@ -18,14 +20,6 @@ optionGroups:
     name: "Agent options"
     defaultVisible: false
 options:
-  AWS_ACCESS_KEY_ID:
-    description: The aws access key id
-    required: true
-    command: printf "%s" "${AWS_ACCESS_KEY_ID:-}"
-  AWS_SECRET_ACCESS_KEY:
-    description: The aws secret access key
-    required: true
-    command: printf "%s" "${AWS_SECRET_ACCESS_KEY:-}"
   AWS_REGION:
     suggestions:
       - ap-south-1
@@ -48,6 +42,14 @@ options:
     description: The aws cloud region to create the VM in. E.g. us-west-1
     required: true
     command: printf "%s" "${AWS_DEFAULT_REGION:-$(aws configure get region)}" || true
+  AWS_ACCESS_KEY_ID:
+    description: The aws access key id
+    required: false
+    command: printf "%s" "${AWS_ACCESS_KEY_ID:-}"
+  AWS_SECRET_ACCESS_KEY:
+    description: The aws secret access key
+    required: false
+    command: printf "%s" "${AWS_SECRET_ACCESS_KEY:-}"
   AWS_DISK_SIZE:
     description: The disk size to use.
     default: "40"

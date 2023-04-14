@@ -10,7 +10,6 @@ import (
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -67,24 +66,22 @@ func (cmd *InitCmd) Run(
 		}
 	}
 
-	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	if awsAccessKeyID == "" {
-		return errors.Errorf("AWS_ACCESS_KEY_ID is not set")
-	}
-
-	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if awsSecretAccessKey == "" {
-		return errors.Errorf("AWS_SECRET_ACCESS_KEY is not set")
-	}
-
-	_, err := options.FromEnv(true)
+	options, err := options.FromEnv(true)
 	if err != nil {
 		return err
 	}
 
-	_, err = session.NewSessionWithOptions(session.Options{
+	session, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	})
+	if err != nil {
+		return err
+	}
+
+	_, err = aws.GetDevpodRunningInstance(
+		session,
+		options.MachineID,
+	)
 	if err != nil {
 		return err
 	}
