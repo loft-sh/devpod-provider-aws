@@ -12,7 +12,7 @@ optionGroups:
       - AWS_DISK_SIZE
       - AWS_INSTANCE_TYPE
     name: "AWS options"
-    defaultVisible: true
+    defaultVisible: false
   - options:
       - AGENT_PATH
       - INACTIVITY_TIMEOUT
