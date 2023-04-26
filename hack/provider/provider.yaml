@@ -59,7 +59,7 @@ options:
     default: ""
   AWS_AMI:
     description: The disk image to use.
-    default: ami-0735c191cf914754d
+    default: ""
   AWS_INSTANCE_TYPE:
     description: The machine type to use.
     default: "c5.xlarge"
