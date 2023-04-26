@@ -10,6 +10,7 @@ optionGroups:
       - AWS_AMI
       - AWS_DISK_SIZE
       - AWS_INSTANCE_TYPE
+      - AWS_VPC_ID
     name: "AWS options"
     defaultVisible: false
   - options:
