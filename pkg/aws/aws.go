@@ -89,18 +89,25 @@ type AwsProvider struct {
 	WorkingDirectory string
 }
 
-func GetDefaultVPC(svc *ec2.EC2) (string, error) {
+func GetDefaultVPC(svc *ec2.EC2) (ec2.Vpc, error) {
 	// Get a list of VPCs so we can associate the group with the first VPC.
 	result, err := svc.DescribeVpcs(nil)
 	if err != nil {
-		return "", err
+		return ec2.Vpc{}, err
 	}
 
 	if len(result.Vpcs) == 0 {
-		return "", errors.New("There are no VPCs to associate with")
+		return ec2.Vpc{}, errors.New("There are no VPCs to associate with")
 	}
 
-	return *result.Vpcs[0].VpcId, nil
+	// We need to find a default vpc
+	for _, vpc := range result.Vpcs {
+		if *vpc.IsDefault {
+			return *vpc, nil
+		}
+	}
+
+	return ec2.Vpc{}, nil
 }
 
 func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
@@ -111,7 +118,7 @@ func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 
 	// We need a VPC to work, if it's not declared, we use the default one
 	if vpc == "" {
-		vpc, err = GetDefaultVPC(svc)
+		_, err = GetDefaultVPC(svc)
 		if err != nil {
 			return "", err
 		}
@@ -119,7 +126,7 @@ func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 
 	// Create the security group with the VPC, name, and description.
 	result, err := svc.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-		GroupName:   aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
+		GroupName:   aws.String("devpod"),
 		Description: aws.String("Default Security Group for DevPod"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -127,7 +134,7 @@ func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 				Tags: []*ec2.Tag{
 					{
 						Key:   aws.String("devpod"),
-						Value: aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
+						Value: aws.String("devpod"),
 					},
 				},
 			},
@@ -296,7 +303,7 @@ func GetDevpodSecurityGroup(provider *AwsProvider) (*ec2.DescribeSecurityGroupsO
 			{
 				Name: aws.String("tag:devpod"),
 				Values: []*string{
-					aws.String(provider.Config.MachineID + "-" + *provider.Session.Config.Region),
+					aws.String("devpod"),
 				},
 			},
 		},
