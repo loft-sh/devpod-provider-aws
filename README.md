@@ -33,9 +33,9 @@ This provides has the seguent options
 
 |    NAME           | REQUIRED |          DESCRIPTION                  |         DEFAULT         |
 |-------------------|----------|---------------------------------------|-------------------------|
-| AWS_AMI           | false    | The disk image to use.                | ami-0735c191cf914754d   |
+| AWS_AMI           | false    | The disk image to use.                |                         |
 | AWS_DISK_SIZE     | false    | The disk size to use.                 | 40                      |
-| AWS_INSTANCE_TYPE | false    | The machine type to use.              | t2.micro                |
+| AWS_INSTANCE_TYPE | false    | The machine type to use.              | c5.xlarge               |
 | AWS_REGION        | true     | The aws cloud region to create the VM |                         |
 | AWS_VPC_ID        | false    | The vpc id to use.                    |                         |
 

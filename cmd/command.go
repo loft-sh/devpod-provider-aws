@@ -68,6 +68,7 @@ func (cmd *CommandCmd) Run(
 
 	// get external ip
 	if *instance.Reservations[0].Instances[0].PublicIpAddress == "" {
+		// clen
 		return fmt.Errorf(
 			"instance %s doesn't have an external nat ip",
 			providerAws.Config.MachineID,
@@ -84,5 +85,5 @@ func (cmd *CommandCmd) Run(
 	defer sshClient.Close()
 
 	// run command
-	return ssh.Run(sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+	return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
 }

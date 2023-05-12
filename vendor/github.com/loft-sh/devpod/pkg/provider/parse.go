@@ -4,18 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"io"
-	"regexp"
-	"strings"
-	"time"
 )
 
-var providerNameRegEx = regexp.MustCompile(`[^a-z0-9\-]+`)
+var ProviderNameRegEx = regexp.MustCompile(`[^a-z0-9\-]+`)
 
 var optionNameRegEx = regexp.MustCompile(`[^A-Z0-9_]+`)
+
+var allowedTypes = []string{
+	"string",
+	"duration",
+	"number",
+	"boolean",
+}
 
 func ParseProvider(reader io.Reader) (*ProviderConfig, error) {
 	payload, err := io.ReadAll(reader)
@@ -50,8 +59,10 @@ func validate(config *ProviderConfig) error {
 	if config.Name == "" {
 		return fmt.Errorf("name is missing in provider.yaml")
 	}
-	if providerNameRegEx.MatchString(config.Name) {
+	if ProviderNameRegEx.MatchString(config.Name) {
 		return fmt.Errorf("provider name can only include smaller case letters, numbers or dashes")
+	} else if len(config.Name) > 32 {
+		return fmt.Errorf("provider name cannot be longer than 32 characters")
 	}
 
 	// validate version
@@ -72,7 +83,7 @@ func validate(config *ProviderConfig) error {
 		if optionValue.ValidationPattern != "" {
 			_, err := regexp.Compile(optionValue.ValidationPattern)
 			if err != nil {
-				return fmt.Errorf("error parsing validation pattern '%s' for option '%s': %v", optionValue.ValidationPattern, optionName, err)
+				return fmt.Errorf("error parsing validation pattern '%s' for option '%s': %w", optionValue.ValidationPattern, optionName, err)
 			}
 		}
 
@@ -87,13 +98,22 @@ func validate(config *ProviderConfig) error {
 		if optionValue.Cache != "" {
 			_, err := time.ParseDuration(optionValue.Cache)
 			if err != nil {
-				return fmt.Errorf("invalid cache value for option '%s': %v", optionName, err)
+				return fmt.Errorf("invalid cache value for option '%s': %w", optionName, err)
 			}
+		}
+
+		if optionValue.Type != "" && !contains(allowedTypes, optionValue.Type) {
+			return fmt.Errorf("type can only be one of in option '%s': %v", optionName, allowedTypes)
 		}
 
 		if optionValue.Cache != "" && optionValue.Command == "" {
 			return fmt.Errorf("cache can only be used with command in option '%s'", optionName)
 		}
+	}
+
+	// validate driver
+	if config.Agent.Driver != "" && config.Agent.Driver != DockerDriver && config.Agent.Driver != KubernetesDriver {
+		return fmt.Errorf("agent.driver can only be docker or kubernetes")
 	}
 
 	// validate provider binaries
@@ -129,6 +149,31 @@ func validate(config *ProviderConfig) error {
 		return fmt.Errorf("exec.create is required")
 	}
 
+	err = validateOptionGroups(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateOptionGroups(config *ProviderConfig) error {
+	foundOptions := map[string]bool{}
+	for idx, group := range config.OptionGroups {
+		if group.Name == "" {
+			return fmt.Errorf("optionGroups[%d].name cannot be empty", idx)
+		}
+
+		for _, option := range group.Options {
+			if config.Options == nil || config.Options[option] == nil {
+				return fmt.Errorf("option '%s' in option group '%s' was not found under options", option, group.Name)
+			} else if foundOptions[option] {
+				return fmt.Errorf("option '%s' is used in multiple option groups", option)
+			}
+
+			foundOptions[option] = true
+		}
+	}
 	return nil
 }
 
@@ -172,14 +217,14 @@ func ParseOptions(provider *ProviderConfig, options []string) (map[string]string
 	for _, option := range options {
 		splitted := strings.Split(option, "=")
 		if len(splitted) == 1 {
-			return nil, fmt.Errorf("invalid option %s, expected format KEY=VALUE", option)
+			return nil, fmt.Errorf("invalid option '%s', expected format KEY=VALUE", option)
 		}
 
 		key := strings.ToUpper(strings.TrimSpace(splitted[0]))
 		value := strings.Join(splitted[1:], "=")
 		providerOption := providerOptions[key]
 		if providerOption == nil {
-			return nil, fmt.Errorf("invalid option %s, allowed options are: %v", key, allowedOptions)
+			return nil, fmt.Errorf("invalid option '%s', allowed options are: %v", key, allowedOptions)
 		}
 
 		if providerOption.ValidationPattern != "" {
@@ -210,8 +255,36 @@ func ParseOptions(provider *ProviderConfig, options []string) (map[string]string
 			}
 		}
 
+		if providerOption.Type != "" {
+			if providerOption.Type == "number" {
+				_, err := strconv.ParseInt(value, 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("invalid value '%s' for option '%s', must be a number", value, key)
+				}
+			} else if providerOption.Type == "boolean" {
+				_, err := strconv.ParseBool(value)
+				if err != nil {
+					return nil, fmt.Errorf("invalid value '%s' for option '%s', must be a boolean", value, key)
+				}
+			} else if providerOption.Type == "duration" {
+				_, err := time.ParseDuration(value)
+				if err != nil {
+					return nil, fmt.Errorf("invalid value '%s' for option '%s', must be a duration like 10s, 5m or 24h", value, key)
+				}
+			}
+		}
+
 		retMap[key] = value
 	}
 
 	return retMap, nil
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
 }

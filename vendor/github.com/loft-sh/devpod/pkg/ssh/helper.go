@@ -1,7 +1,7 @@
 package ssh
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -9,6 +9,26 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 )
+
+func NewSSHPassClient(user, addr, password string) (*ssh.Client, error) {
+	clientConfig := &ssh.ClientConfig{
+		Auth:            []ssh.AuthMethod{},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	clientConfig.Auth = append(clientConfig.Auth, ssh.Password(password))
+
+	if user != "" {
+		clientConfig.User = user
+	}
+
+	client, err := ssh.Dial("tcp", addr, clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("dial to %v failed: %w", addr, err)
+	}
+
+	return client, nil
+}
 
 func NewSSHClient(user, addr string, keyBytes []byte) (*ssh.Client, error) {
 	sshConfig, err := ConfigFromKeyBytes(keyBytes)
@@ -64,25 +84,23 @@ func ConfigFromKeyBytes(keyBytes []byte) (*ssh.ClientConfig, error) {
 	return clientConfig, nil
 }
 
-func Output(client *ssh.Client, command string) ([]byte, []byte, error) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	err := Run(client, command, nil, stdout, stderr)
-	return stdout.Bytes(), stderr.Bytes(), err
-}
-
-func CombinedOutput(client *ssh.Client, command string) ([]byte, error) {
-	buf := &bytes.Buffer{}
-	err := Run(client, command, nil, buf, buf)
-	return buf.Bytes(), err
-}
-
-func Run(client *ssh.Client, command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+func Run(ctx context.Context, client *ssh.Client, command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	sess, err := client.NewSession()
 	if err != nil {
 		return err
 	}
 	defer sess.Close()
+
+	exit := make(chan struct{})
+	defer close(exit)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = sess.Signal(ssh.SIGINT)
+			_ = sess.Close()
+		case <-exit:
+		}
+	}()
 
 	sess.Stdin = stdin
 	sess.Stdout = stdout

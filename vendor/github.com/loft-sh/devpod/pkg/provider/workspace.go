@@ -9,8 +9,14 @@ type Workspace struct {
 	// ID is the workspace id to use
 	ID string `json:"id,omitempty"`
 
+	// UID is used to identify this specific workspace
+	UID string `json:"uid,omitempty"`
+
 	// Folder is the local folder where workspace related contents will be stored
 	Folder string `json:"folder,omitempty"`
+
+	// Picture is the project social media image
+	Picture string `json:"picture,omitempty"`
 
 	// Provider is the provider used to create this workspace
 	Provider WorkspaceProviderConfig `json:"provider,omitempty"`
@@ -23,6 +29,9 @@ type Workspace struct {
 
 	// Source is the source where this workspace will be created from
 	Source WorkspaceSource `json:"source,omitempty"`
+
+	// DevContainerPath is the relative path where the devcontainer.json is located.
+	DevContainerPath string `json:"devContainerPath,omitempty"`
 
 	// CreationTimestamp is the timestamp when this workspace was created
 	CreationTimestamp types.Time `json:"creationTimestamp,omitempty"`
@@ -37,6 +46,14 @@ type Workspace struct {
 	Origin string `json:"-"`
 }
 
+type WorkspaceIDEConfig struct {
+	// Name is the name of the IDE
+	Name string `json:"name,omitempty"`
+
+	// Options are the local options that override the global ones
+	Options map[string]config.OptionValue `json:"options,omitempty"`
+}
+
 type WorkspaceMachineConfig struct {
 	// ID is the machine ID to use for this workspace
 	ID string `json:"machineId,omitempty"`
@@ -44,35 +61,6 @@ type WorkspaceMachineConfig struct {
 	// AutoDelete specifies if the machine should get destroyed when
 	// the workspace is destroyed
 	AutoDelete bool `json:"autoDelete,omitempty"`
-}
-
-type WorkspaceIDEConfig struct {
-	// IDE is the name of the ide to use
-	IDE IDE `json:"ide,omitempty"`
-
-	// Options are additional ide options
-	Options map[string]string `json:"options,omitempty"`
-}
-
-type IDE string
-
-const (
-	IDENone       IDE = "none"
-	IDEVSCode     IDE = "vscode"
-	IDEOpenVSCode IDE = "openvscode"
-	IDEIntellij   IDE = "intellij"
-	IDEGoland     IDE = "goland"
-	IDEPyCharm    IDE = "pycharm"
-	IDEPhpStorm   IDE = "phpstorm"
-	IDECLion      IDE = "clion"
-	IDERubyMine   IDE = "rubymine"
-	IDERider      IDE = "rider"
-	IDEWebStorm   IDE = "webstorm"
-)
-
-type WorkspaceIDEVSCode struct {
-	// Browser determines if the vscode should be opened in the browser
-	Browser bool `json:"browser,omitempty"`
 }
 
 type WorkspaceProviderConfig struct {
@@ -110,8 +98,11 @@ type AgentWorkspaceInfo struct {
 	// Options holds the filled provider options for this workspace
 	Options map[string]config.OptionValue `json:"options,omitempty"`
 
-	// Folder holds the workspace folder on the remote machine
-	Folder string `json:"-"`
+	// ContentFolder holds the folder where the content is stored
+	ContentFolder string `json:"contentFolder,omitempty"`
+
+	// Origin holds the folder where this config was loaded from
+	Origin string `json:"-"`
 }
 
 func (w WorkspaceSource) String() string {

@@ -15,11 +15,20 @@ type ProviderConfig struct {
 	// Version is the provider version
 	Version string `json:"version,omitempty"`
 
+	// Icon holds an image URL that will be displayed
+	Icon string `json:"icon,omitempty"`
+
+	// Home holds the provider home URL
+	Home string `json:"home,omitempty"`
+
 	// Source is the source the provider was loaded from
 	Source ProviderSource `json:"source,omitempty"`
 
 	// Description is the provider description
 	Description string `json:"description,omitempty"`
+
+	// OptionGroups holds information how to display options
+	OptionGroups []ProviderOptionGroup `json:"optionGroups,omitempty"`
 
 	// Options are the provider options.
 	Options map[string]*ProviderOption `json:"options,omitempty"`
@@ -34,7 +43,21 @@ type ProviderConfig struct {
 	Binaries map[string][]*ProviderBinary `json:"binaries,omitempty"`
 }
 
+type ProviderOptionGroup struct {
+	// Name is the display name of the option group
+	Name string `json:"name,omitempty"`
+
+	// Options are the options that belong to this group
+	Options []string `json:"options,omitempty"`
+
+	// DefaultVisible defines if the option group should be visible by default
+	DefaultVisible bool `json:"defaultVisible,omitempty"`
+}
+
 type ProviderSource struct {
+	// Internal means provider was received internally
+	Internal bool `json:"internal,omitempty"`
+
 	// Github source for the provider
 	Github string `json:"github,omitempty"`
 
@@ -56,8 +79,12 @@ type ProviderAgentConfig struct {
 	DownloadURL string `json:"downloadURL,omitempty"`
 
 	// Timeout is the timeout in minutes to wait until the agent tries
-	// to turn of the server. Defaults to 1 hour.
+	// to turn of the server.
 	Timeout string `json:"inactivityTimeout,omitempty"`
+
+	// ContainerTimeout is the timeout in minutes to wait until the agent tries
+	// to delete the container.
+	ContainerTimeout string `json:"containerInactivityTimeout,omitempty"`
 
 	// InjectGitCredentials signals DevPod if git credentials should get synced into
 	// the remote machine for cloning the repository.
@@ -72,6 +99,69 @@ type ProviderAgentConfig struct {
 
 	// Binaries is an optional field to specify a binary to execute the commands
 	Binaries map[string][]*ProviderBinary `json:"binaries,omitempty"`
+
+	// Driver is the driver to use for deploying the devcontainer. Currently supports
+	// docker (default) or kubernetes (experimental)
+	Driver string `json:"driver,omitempty"`
+
+	// Kubernetes holds kubernetes specific configuration
+	Kubernetes ProviderKubernetesDriverConfig `json:"kubernetes,omitempty"`
+
+	// Docker holds docker specific configuration
+	Docker ProviderDockerDriverConfig `json:"docker,omitempty"`
+}
+
+const (
+	DockerDriver     = "docker"
+	KubernetesDriver = "kubernetes"
+)
+
+type ProviderKubernetesDriverConfig struct {
+	// Path where to find the kubectl binary, defaults to 'kubectl'
+	Path string `json:"path,omitempty"`
+
+	// Namespace is the Kubernetes namespace to use
+	Namespace string `json:"namespace,omitempty"`
+
+	// CreateNamespace specifies if DevPod should try to create the namespace
+	CreateNamespace types.StrBool `json:"createNamespace,omitempty"`
+
+	// Context is the context to use
+	Context string `json:"context,omitempty"`
+
+	// Config is the path to the kube config to use
+	Config string `json:"config,omitempty"`
+
+	// ClusterRole defines a role binding with the given cluster role
+	// DevPod should create.
+	ClusterRole string `json:"clusterRole,omitempty"`
+
+	// ServiceAccount is the service account to use
+	ServiceAccount string `json:"serviceAccount,omitempty"`
+
+	// BuildRepository defines the repository to push builds. If empty,
+	// DevPod will not try to build any images at all.
+	BuildRepository string `json:"buildRepository,omitempty"`
+
+	// BuildkitImage is the build kit image to use
+	BuildkitImage string `json:"buildkitImage,omitempty"`
+
+	// BuildkitPrivileged signals if pod should be ran in privileged mode
+	BuildkitPrivileged types.StrBool `json:"buildkitPrivileged,omitempty"`
+
+	// HelperImage is used to find out cluster architecture and copy files
+	HelperImage string `json:"helperImage,omitempty"`
+
+	// PersistentVolumeSize is the size of the persistent volume in GB
+	PersistentVolumeSize string `json:"persistentVolumeSize,omitempty"`
+}
+
+type ProviderDockerDriverConfig struct {
+	// Path where to find the docker binary, defaults to 'docker'
+	Path string `json:"path,omitempty"`
+
+	// If false, DevPod will not try to install docker into the machine.
+	Install types.StrBool `json:"install,omitempty"`
 }
 
 type ProviderAgentConfigExec struct {
@@ -101,7 +191,7 @@ type ProviderBinary struct {
 }
 
 type ProviderCommands struct {
-	// Init is run directly after `devpod use provider`
+	// Init is run directly after `devpod provider use`
 	Init types.StrArray `json:"init,omitempty"`
 
 	// Command executes a command on the server
@@ -133,11 +223,17 @@ type ProviderOption struct {
 	// If true, will not show the value to the user
 	Password bool `json:"password,omitempty"`
 
+	// Type is the provider option type. Can be one of: string, duration, number or boolean. Defaults to string
+	Type string `json:"type,omitempty"`
+
 	// ValidationPattern is a regex pattern to validate the value
 	ValidationPattern string `json:"validationPattern,omitempty"`
 
 	// ValidationMessage is the message that appears if the user enters an invalid option
 	ValidationMessage string `json:"validationMessage,omitempty"`
+
+	// Suggestions are suggestions to show in the DevPod UI for this option
+	Suggestions []string `json:"suggestions,omitempty"`
 
 	// Allowed values for this option.
 	Enum []string `json:"enum,omitempty"`
@@ -163,8 +259,5 @@ type ProviderOption struct {
 }
 
 func (c *ProviderConfig) IsMachineProvider() bool {
-	if len(c.Exec.Create) > 0 {
-		return true
-	}
-	return false
+	return len(c.Exec.Create) > 0
 }

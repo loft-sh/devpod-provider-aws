@@ -3,12 +3,12 @@ package log
 import (
 	"errors"
 	"fmt"
-	"github.com/loft-sh/devpod/pkg/survey"
 	"io"
 	"strings"
 	"sync"
 
 	"github.com/acarl005/stripansi"
+	"github.com/loft-sh/devpod/pkg/survey"
 	"github.com/sirupsen/logrus"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
@@ -16,9 +16,9 @@ import (
 type fileLogger struct {
 	logger *logrus.Logger
 
-	m        *sync.Mutex
-	level    logrus.Level
-	sinks    []Logger
+	m     *sync.Mutex
+	level logrus.Level
+	// sinks    []Logger
 	prefixes []string
 }
 
@@ -193,6 +193,10 @@ func (f *fileLogger) Print(level logrus.Level, args ...interface{}) {
 		f.Error(args...)
 	case logrus.FatalLevel:
 		f.Fatal(args...)
+	case logrus.PanicLevel:
+		f.Fatal(args...)
+	case logrus.TraceLevel:
+		f.Debug(args...)
 	}
 }
 
@@ -208,6 +212,10 @@ func (f *fileLogger) Printf(level logrus.Level, format string, args ...interface
 		f.Errorf(format, args...)
 	case logrus.FatalLevel:
 		f.Fatalf(format, args...)
+	case logrus.PanicLevel:
+		f.Fatalf(format, args...)
+	case logrus.TraceLevel:
+		f.Debugf(format, args...)
 	}
 }
 

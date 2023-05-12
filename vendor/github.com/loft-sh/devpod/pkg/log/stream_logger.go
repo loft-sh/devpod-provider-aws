@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/loft-sh/devpod/pkg/hash"
-	"github.com/loft-sh/devpod/pkg/scanner"
-
 	"github.com/acarl005/stripansi"
 	goansi "github.com/k0kubun/go-ansi"
+	"github.com/loft-sh/devpod/pkg/hash"
+	"github.com/loft-sh/devpod/pkg/scanner"
 	"github.com/loft-sh/devpod/pkg/survey"
 	"github.com/loft-sh/devpod/pkg/terminal"
 	"github.com/mgutz/ansi"
@@ -22,7 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var startTime = time.Now()
+// var startTime = time.Now()
 
 var Default = NewStdoutLogger(os.Stdin, stdout, stderr, logrus.InfoLevel)
 
@@ -318,15 +317,30 @@ func (s *StreamLogger) writeMessage(fnType logFunctionType, message string) {
 	}
 }
 
+func (s *StreamLogger) JSON(level logrus.Level, value interface{}) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	if s.level >= level && s.format == JSONFormat {
+		stream := s.getStream(level)
+		line, err := json.Marshal(value)
+		if err == nil {
+			_, _ = stream.Write([]byte(string(line) + "\n"))
+		}
+	}
+}
+
 func (s *StreamLogger) writeJSON(message string, level logrus.Level) {
-	stream := s.getStream(level)
-	line, err := json.Marshal(&Line{
-		Time:    time.Now(),
-		Message: stripansi.Strip(strings.TrimSpace(message)),
-		Level:   level,
-	})
-	if err == nil {
-		_, _ = stream.Write([]byte(string(line) + "\n"))
+	if message != "" {
+		stream := s.getStream(level)
+		line, err := json.Marshal(&Line{
+			Time:    time.Now(),
+			Message: stripansi.Strip(strings.TrimSpace(message)),
+			Level:   level,
+		})
+		if err == nil {
+			_, _ = stream.Write([]byte(string(line) + "\n"))
+		}
 	}
 }
 
@@ -437,6 +451,10 @@ func (s *StreamLogger) Print(level logrus.Level, args ...interface{}) {
 		s.Error(args...)
 	case logrus.FatalLevel:
 		s.Fatal(args...)
+	case logrus.PanicLevel:
+		s.Fatal(args...)
+	case logrus.TraceLevel:
+		s.Debug(args...)
 	}
 }
 
@@ -452,6 +470,10 @@ func (s *StreamLogger) Printf(level logrus.Level, format string, args ...interfa
 		s.Errorf(format, args...)
 	case logrus.FatalLevel:
 		s.Fatalf(format, args...)
+	case logrus.PanicLevel:
+		s.Fatalf(format, args...)
+	case logrus.TraceLevel:
+		s.Debugf(format, args...)
 	}
 }
 
