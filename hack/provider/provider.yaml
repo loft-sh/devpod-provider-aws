@@ -2,7 +2,7 @@ name: aws
 version: ##VERSION##
 description: |-
   DevPod on AWS Cloud
-icon: https://www.vectorlogo.zone/logos/amazon_aws/amazon_aws-ar21.svg
+icon: https://devpod.sh/assets/aws.svg
 optionGroups:
   - options:
       - AWS_ACCESS_KEY_ID
