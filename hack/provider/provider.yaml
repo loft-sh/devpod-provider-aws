@@ -7,6 +7,7 @@ optionGroups:
   - options:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
+      - AWS_PROFILE
       - AWS_AMI
       - AWS_DISK_SIZE
       - AWS_INSTANCE_TYPE
@@ -51,6 +52,10 @@ options:
     description: The aws secret access key
     required: false
     command: printf "%s" "${AWS_SECRET_ACCESS_KEY:-}"
+  AWS_PROFILE:
+    description: The aws profile name to use
+    required: false
+    command: printf "%s" "${AWS_PROFILE:-default}"
   AWS_DISK_SIZE:
     description: The disk size to use.
     default: "40"
