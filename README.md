@@ -39,7 +39,7 @@ This provider has the following options
 | AWS_REGION        | true     | The aws cloud region to create the VM |                         |
 | AWS_VPC_ID        | false    | The vpc id to use.                    |                         |
 
-Options can either be set in `env` or on the commamd line, for example:
+Options can either be set in `env` or on the command line, for example:
 
 ```sh
 devpod provider set-options -o AWS_AMI=my-custom-ami
