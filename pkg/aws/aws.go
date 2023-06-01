@@ -2,8 +2,6 @@ package aws
 
 import (
 	"encoding/base64"
-	"encoding/json"
-	"os"
 	"sort"
 	"time"
 
@@ -14,7 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go/service/iam"
+
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/pkg/errors"
 )
@@ -26,39 +25,14 @@ type AwsToken struct {
 }
 
 func NewProvider(logs log.Logger) (*AwsProvider, error) {
-	awsToken := os.Getenv("AWS_TOKEN")
-	if awsToken != "" {
-		var tokenJSON map[string]AwsToken
-
-		err := json.Unmarshal([]byte(awsToken), &tokenJSON)
-		if err != nil {
-			return nil, err
-		}
-
-		err = os.Setenv("AWS_ACCESS_KEY_ID", tokenJSON["Credentials"].AccessKeyID)
-		if err != nil {
-			return nil, err
-		}
-
-		err = os.Setenv("AWS_SECRET_ACCESS_KEY", tokenJSON["Credentials"].SecretAccessKey)
-		if err != nil {
-			return nil, err
-		}
-
-		err = os.Setenv("AWS_SESSION_TOKEN", tokenJSON["Credentials"].SessionToken)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	config, err := options.FromEnv(false)
-
 	if err != nil {
 		return nil, err
 	}
 
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
+		// Config:
 	})
 	if err != nil {
 		return nil, err
@@ -89,39 +63,233 @@ type AwsProvider struct {
 	WorkingDirectory string
 }
 
-func GetDefaultVPC(svc *ec2.EC2) (ec2.Vpc, error) {
+func GetDevpodVPC(provider *AwsProvider) (string, error) {
+	if provider.Config.VpcID != "" {
+		return provider.Config.VpcID, nil
+	}
 	// Get a list of VPCs so we can associate the group with the first VPC.
+	svc := ec2.New(provider.Session)
 	result, err := svc.DescribeVpcs(nil)
 	if err != nil {
-		return ec2.Vpc{}, err
+		return "", err
 	}
 
 	if len(result.Vpcs) == 0 {
-		return ec2.Vpc{}, errors.New("There are no VPCs to associate with")
+		return "", errors.New("There are no VPCs to associate with")
 	}
 
 	// We need to find a default vpc
 	for _, vpc := range result.Vpcs {
 		if *vpc.IsDefault {
-			return *vpc, nil
+			return *vpc.VpcId, nil
 		}
 	}
 
-	return ec2.Vpc{}, nil
+	return "", nil
+}
+
+func GetDefaultAMI(sess *session.Session) (string, error) {
+	svc := ec2.New(sess)
+	input := &ec2.DescribeImagesInput{
+		Owners: []*string{
+			aws.String("amazon"),
+			aws.String("self"),
+		},
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("virtualization-type"),
+				Values: []*string{
+					aws.String("hvm"),
+				},
+			},
+			{
+				Name: aws.String("root-device-type"),
+				Values: []*string{
+					aws.String("ebs"),
+				},
+			},
+			{
+				Name: aws.String("platform-details"),
+				Values: []*string{
+					aws.String("Linux/UNIX"),
+				},
+			},
+			{
+				Name: aws.String("description"),
+				Values: []*string{
+					aws.String("Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build*"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeImages(input)
+	if err != nil {
+		return "", err
+	}
+
+	// Sort by date, so we take the latest AMI available for Ubuntu 22.04
+	sort.Slice(result.Images, func(i, j int) bool {
+		iTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[i].CreationDate)
+		if err != nil {
+			return false
+		}
+		jTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[j].CreationDate)
+		if err != nil {
+			return false
+		}
+		return iTime.After(jTime)
+	})
+
+	return *result.Images[0].ImageId, nil
+}
+
+func GetDevpodInstanceProfile(provider *AwsProvider) (string, error) {
+	if provider.Config.InstanceProfileArn != "" {
+		return provider.Config.InstanceProfileArn, nil
+	}
+
+	svc := iam.New(session.New())
+
+	roleInput := &iam.GetInstanceProfileInput{
+		InstanceProfileName: aws.String("devpod-ec2-role"),
+	}
+
+	response, err := svc.GetInstanceProfile(roleInput)
+	if err != nil {
+		return CreateDevpodInstanceProfile(provider)
+	}
+
+	return *response.InstanceProfile.Arn, nil
+}
+
+func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
+	svc := iam.New(provider.Session)
+	roleInput := &iam.CreateRoleInput{
+		AssumeRolePolicyDocument: aws.String(`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "ec2.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}`),
+		RoleName: aws.String("devpod-ec2-role"),
+	}
+
+	_, err := svc.CreateRole(roleInput)
+	if err != nil {
+		return "", err
+	}
+
+	policyInput := &iam.PutRolePolicyInput{
+		PolicyDocument: aws.String(`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances",
+                "ec2:StopInstances",
+                "ec2:DescribeInstanceStatus"
+            ],
+            "Resource": "*"
+        }
+    ]
+}`),
+		PolicyName: aws.String("devpod-ec2-policy"),
+		RoleName:   aws.String("devpod-ec2-role"),
+	}
+
+	_, err = svc.PutRolePolicy(policyInput)
+	if err != nil {
+		return "", err
+	}
+
+	policyInput = &iam.PutRolePolicyInput{
+		PolicyDocument: aws.String(`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "ec2:*",
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}`),
+		PolicyName: aws.String("EC2Access"),
+		RoleName:   aws.String("devpod-ec2-role"),
+	}
+
+	_, err = svc.PutRolePolicy(policyInput)
+	if err != nil {
+		return "", err
+	}
+
+	instanceProfile := &iam.CreateInstanceProfileInput{
+		InstanceProfileName: aws.String("devpod-ec2-role"),
+	}
+
+	response, err := svc.CreateInstanceProfile(instanceProfile)
+	if err != nil {
+		return "", err
+	}
+
+	instanceRole := &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: aws.String("devpod-ec2-role"),
+		RoleName:            aws.String("devpod-ec2-role"),
+	}
+
+	_, err = svc.AddRoleToInstanceProfile(instanceRole)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: need to find a better way to ensure
+	// role/profile propagation has succeded
+	time.Sleep(time.Second * 10)
+
+	return *response.InstanceProfile.Arn, nil
+}
+
+func GetDevpodSecurityGroup(provider *AwsProvider) (string, error) {
+	if provider.Config.SecurityGroupID != "" {
+		return provider.Config.SecurityGroupID, nil
+	}
+
+	svc := ec2.New(provider.Session)
+	input := &ec2.DescribeSecurityGroupsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []*string{
+					aws.String("devpod"),
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeSecurityGroups(input)
+	// It it is not created, do it
+	if len(result.SecurityGroups) == 0 || err != nil {
+		return CreateDevpodSecurityGroup(provider)
+	}
+
+	return "", nil
 }
 
 func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 	var err error
 
 	svc := ec2.New(provider.Session)
-	vpc := provider.Config.VpcID
-
-	// We need a VPC to work, if it's not declared, we use the default one
-	if vpc == "" {
-		_, err = GetDefaultVPC(svc)
-		if err != nil {
-			return "", err
-		}
+	vpc, err := GetDevpodVPC(provider)
+	if err != nil {
+		return "", err
 	}
 
 	// Create the security group with the VPC, name, and description.
@@ -295,58 +463,6 @@ func GetDevpodRunningInstance(
 	return result, nil
 }
 
-func GetDevpodSecurityGroup(provider *AwsProvider) (*ec2.DescribeSecurityGroupsOutput, error) {
-	svc := ec2.New(provider.Session)
-
-	input := &ec2.DescribeSecurityGroupsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("tag:devpod"),
-				Values: []*string{
-					aws.String("devpod"),
-				},
-			},
-		},
-	}
-
-	result, err := svc.DescribeSecurityGroups(input)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func GetInjectKeypairScript(dir string) (string, error) {
-	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
-	if err != nil {
-		return "", err
-	}
-
-	publicKey, err := base64.StdEncoding.DecodeString(publicKeyBase)
-	if err != nil {
-		return "", err
-	}
-
-	resultScript := `#!/bin/sh
-useradd devpod -d /home/devpod
-mkdir -p /home/devpod
-if grep -q sudo /etc/groups; then
-	usermod -aG sudo devpod
-elif grep -q wheel /etc/groups; then
-	usermod -aG wheel devpod
-fi
-echo "devpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/91-devpod
-mkdir -p /home/devpod/.ssh
-echo "` + string(publicKey) + `" >> /home/devpod/.ssh/authorized_keys
-chmod 0700 /home/devpod/.ssh
-chmod 0600 /home/devpod/.ssh/authorized_keys
-chown -R devpod:devpod /home/devpod`
-
-	return base64.StdEncoding.EncodeToString([]byte(resultScript)), nil
-}
-
 func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, error) {
 	svc := ec2.New(sess)
 
@@ -362,13 +478,13 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 		return nil, err
 	}
 
-	result, err := svc.RunInstances(&ec2.RunInstancesInput{
+	instance := &ec2.RunInstancesInput{
 		ImageId:      aws.String(providerAws.Config.DiskImage),
 		InstanceType: aws.String(providerAws.Config.MachineType),
 		MinCount:     aws.Int64(1),
 		MaxCount:     aws.Int64(1),
 		SecurityGroupIds: []*string{
-			devpodSG.SecurityGroups[0].GroupId,
+			aws.String(devpodSG),
 		},
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			{
@@ -390,7 +506,20 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 			},
 		},
 		UserData: &userData,
-	})
+	}
+
+	profile, err := GetDevpodInstanceProfile(providerAws)
+	if err == nil {
+		instance.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+			Arn: aws.String(profile),
+		}
+	}
+
+	if providerAws.Config.SubnetID != "" {
+		instance.SubnetId = &providerAws.Config.SubnetID
+	}
+
+	result, err := svc.RunInstances(instance)
 
 	if err != nil {
 		return nil, err
@@ -474,77 +603,31 @@ func Delete(sess *session.Session, instanceID *string) error {
 	return err
 }
 
-func GetDefaultAMI(sess *session.Session) (string, error) {
-	svc := ec2.New(sess)
-	input := &ec2.DescribeImagesInput{
-		Owners: []*string{
-			aws.String("amazon"),
-			aws.String("self"),
-		},
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("virtualization-type"),
-				Values: []*string{
-					aws.String("hvm"),
-				},
-			},
-			{
-				Name: aws.String("root-device-type"),
-				Values: []*string{
-					aws.String("ebs"),
-				},
-			},
-			{
-				Name: aws.String("platform-details"),
-				Values: []*string{
-					aws.String("Linux/UNIX"),
-				},
-			},
-			{
-				Name: aws.String("description"),
-				Values: []*string{
-					aws.String("Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build*"),
-				},
-			},
-		},
-	}
-
-	result, err := svc.DescribeImages(input)
+func GetInjectKeypairScript(dir string) (string, error) {
+	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
 	if err != nil {
 		return "", err
 	}
 
-	// Sort by date, so we take the latest AMI available for Ubuntu 22.04
-	sort.Slice(result.Images, func(i, j int) bool {
-		iTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[i].CreationDate)
-		if err != nil {
-			return false
-		}
-		jTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[j].CreationDate)
-		if err != nil {
-			return false
-		}
-		return iTime.After(jTime)
-	})
-
-	return *result.Images[0].ImageId, nil
-}
-
-func AccessToken(sess *session.Session) (string, error) {
-	// If the user is logged via token, just forward it
-	awsToken := os.Getenv("AWS_TOKEN")
-	if awsToken != "" {
-		return awsToken, nil
-	}
-
-	svc := sts.New(sess)
-
-	token, err := svc.GetSessionToken(nil)
+	publicKey, err := base64.StdEncoding.DecodeString(publicKeyBase)
 	if err != nil {
 		return "", err
 	}
 
-	result, err := json.Marshal(token)
+	resultScript := `#!/bin/sh
+useradd devpod -d /home/devpod
+mkdir -p /home/devpod
+if grep -q sudo /etc/groups; then
+	usermod -aG sudo devpod
+elif grep -q wheel /etc/groups; then
+	usermod -aG wheel devpod
+fi
+echo "devpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/91-devpod
+mkdir -p /home/devpod/.ssh
+echo "` + string(publicKey) + `" >> /home/devpod/.ssh/authorized_keys
+chmod 0700 /home/devpod/.ssh
+chmod 0600 /home/devpod/.ssh/authorized_keys
+chown -R devpod:devpod /home/devpod`
 
-	return string(result), err
+	return base64.StdEncoding.EncodeToString([]byte(resultScript)), nil
 }

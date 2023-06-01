@@ -12,6 +12,8 @@ optionGroups:
       - AWS_DISK_SIZE
       - AWS_INSTANCE_TYPE
       - AWS_VPC_ID
+      - AWS_SUBNET_ID
+      - AWS_SECURITY_GROUP_ID
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -62,6 +64,12 @@ options:
   AWS_VPC_ID:
     description: The vpc id to use.
     default: ""
+  AWS_SUBNET_ID:
+    description: The subnet id to use.
+    default: ""
+  AWS_SECURITY_GROUP_ID:
+    description: The security group id to use.
+    default: ""
   AWS_AMI:
     description: The disk image to use.
     default: ""
@@ -106,13 +114,6 @@ options:
   AGENT_PATH:
     description: The path where to inject the DevPod agent to.
     default: /var/lib/toolbox/devpod
-  AWS_TOKEN:
-    local: true
-    hidden: true
-    cache: 5m
-    description: "The AWS auth token to use"
-    command: |-
-      ${AWS_PROVIDER} token
 agent:
   path: ${AGENT_PATH}
   inactivityTimeout: ${INACTIVITY_TIMEOUT}
