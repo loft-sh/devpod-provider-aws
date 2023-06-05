@@ -35,7 +35,7 @@ func NewStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Status an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
 			if err != nil {
 				return err
 			}
@@ -59,7 +59,7 @@ func (cmd *StatusCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	status, err := aws.Status(providerAws.Session, providerAws.Config.MachineID)
+	status, err := aws.Status(ctx, providerAws.AwsConfig, providerAws.Config.MachineID)
 	if err != nil {
 		return err
 	}

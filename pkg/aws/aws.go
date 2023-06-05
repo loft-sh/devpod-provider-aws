@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"context"
 	"encoding/base64"
 	"sort"
 	"time"
@@ -9,37 +10,29 @@ import (
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/ssh"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/pkg/errors"
 )
 
-type AwsToken struct {
-	AccessKeyID     string "json:AccessKeyId"
-	SecretAccessKey string "json:SecretAccessKey"
-	SessionToken    string "json:SessionToken"
-}
-
-func NewProvider(logs log.Logger) (*AwsProvider, error) {
+func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 	config, err := options.FromEnv(false)
 	if err != nil {
 		return nil, err
 	}
 
-	sess, err := session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		// Config:
-	})
+	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if config.DiskImage == "" {
-		image, err := GetDefaultAMI(sess)
+		image, err := GetDefaultAMI(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -48,9 +41,9 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 
 	// create provider
 	provider := &AwsProvider{
-		Config:  config,
-		Session: sess,
-		Log:     logs,
+		Config:    config,
+		AwsConfig: cfg,
+		Log:       logs,
 	}
 
 	return provider, nil
@@ -58,18 +51,18 @@ func NewProvider(logs log.Logger) (*AwsProvider, error) {
 
 type AwsProvider struct {
 	Config           *options.Options
-	Session          *session.Session
+	AwsConfig        aws.Config
 	Log              log.Logger
 	WorkingDirectory string
 }
 
-func GetDevpodVPC(provider *AwsProvider) (string, error) {
+func GetDevpodVPC(ctx context.Context, provider *AwsProvider) (string, error) {
 	if provider.Config.VpcID != "" {
 		return provider.Config.VpcID, nil
 	}
 	// Get a list of VPCs so we can associate the group with the first VPC.
-	svc := ec2.New(provider.Session)
-	result, err := svc.DescribeVpcs(nil)
+	svc := ec2.NewFromConfig(provider.AwsConfig)
+	result, err := svc.DescribeVpcs(ctx, nil)
 	if err != nil {
 		return "", err
 	}
@@ -88,42 +81,42 @@ func GetDevpodVPC(provider *AwsProvider) (string, error) {
 	return "", nil
 }
 
-func GetDefaultAMI(sess *session.Session) (string, error) {
-	svc := ec2.New(sess)
+func GetDefaultAMI(ctx context.Context, cfg aws.Config) (string, error) {
+	svc := ec2.NewFromConfig(cfg)
 	input := &ec2.DescribeImagesInput{
-		Owners: []*string{
-			aws.String("amazon"),
-			aws.String("self"),
+		Owners: []string{
+			"amazon",
+			"self",
 		},
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name: aws.String("virtualization-type"),
-				Values: []*string{
-					aws.String("hvm"),
+				Values: []string{
+					"hvm",
 				},
 			},
 			{
 				Name: aws.String("root-device-type"),
-				Values: []*string{
-					aws.String("ebs"),
+				Values: []string{
+					"ebs",
 				},
 			},
 			{
 				Name: aws.String("platform-details"),
-				Values: []*string{
-					aws.String("Linux/UNIX"),
+				Values: []string{
+					"Linux/UNIX",
 				},
 			},
 			{
 				Name: aws.String("description"),
-				Values: []*string{
-					aws.String("Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build*"),
+				Values: []string{
+					"Canonical, Ubuntu, 22.04 LTS, amd64 jammy image build*",
 				},
 			},
 		},
 	}
 
-	result, err := svc.DescribeImages(input)
+	result, err := svc.DescribeImages(ctx, input)
 	if err != nil {
 		return "", err
 	}
@@ -144,27 +137,27 @@ func GetDefaultAMI(sess *session.Session) (string, error) {
 	return *result.Images[0].ImageId, nil
 }
 
-func GetDevpodInstanceProfile(provider *AwsProvider) (string, error) {
+func GetDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (string, error) {
 	if provider.Config.InstanceProfileArn != "" {
 		return provider.Config.InstanceProfileArn, nil
 	}
 
-	svc := iam.New(session.New())
+	svc := iam.NewFromConfig(provider.AwsConfig)
 
 	roleInput := &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String("devpod-ec2-role"),
 	}
 
-	response, err := svc.GetInstanceProfile(roleInput)
+	response, err := svc.GetInstanceProfile(ctx, roleInput)
 	if err != nil {
-		return CreateDevpodInstanceProfile(provider)
+		return CreateDevpodInstanceProfile(ctx, provider)
 	}
 
 	return *response.InstanceProfile.Arn, nil
 }
 
-func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
-	svc := iam.New(provider.Session)
+func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (string, error) {
+	svc := iam.NewFromConfig(provider.AwsConfig)
 	roleInput := &iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(`{
     "Version": "2012-10-17",
@@ -181,7 +174,7 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 		RoleName: aws.String("devpod-ec2-role"),
 	}
 
-	_, err := svc.CreateRole(roleInput)
+	_, err := svc.CreateRole(ctx, roleInput)
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +199,7 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 		RoleName:   aws.String("devpod-ec2-role"),
 	}
 
-	_, err = svc.PutRolePolicy(policyInput)
+	_, err = svc.PutRolePolicy(ctx, policyInput)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +219,7 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 		RoleName:   aws.String("devpod-ec2-role"),
 	}
 
-	_, err = svc.PutRolePolicy(policyInput)
+	_, err = svc.PutRolePolicy(ctx, policyInput)
 	if err != nil {
 		return "", err
 	}
@@ -235,7 +228,7 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 		InstanceProfileName: aws.String("devpod-ec2-role"),
 	}
 
-	response, err := svc.CreateInstanceProfile(instanceProfile)
+	response, err := svc.CreateInstanceProfile(ctx, instanceProfile)
 	if err != nil {
 		return "", err
 	}
@@ -245,7 +238,7 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 		RoleName:            aws.String("devpod-ec2-role"),
 	}
 
-	_, err = svc.AddRoleToInstanceProfile(instanceRole)
+	_, err = svc.AddRoleToInstanceProfile(ctx, instanceRole)
 	if err != nil {
 		return "", err
 	}
@@ -257,49 +250,49 @@ func CreateDevpodInstanceProfile(provider *AwsProvider) (string, error) {
 	return *response.InstanceProfile.Arn, nil
 }
 
-func GetDevpodSecurityGroup(provider *AwsProvider) (string, error) {
+func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string, error) {
 	if provider.Config.SecurityGroupID != "" {
 		return provider.Config.SecurityGroupID, nil
 	}
 
-	svc := ec2.New(provider.Session)
+	svc := ec2.NewFromConfig(provider.AwsConfig)
 	input := &ec2.DescribeSecurityGroupsInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name: aws.String("tag:devpod"),
-				Values: []*string{
-					aws.String("devpod"),
+				Values: []string{
+					"devpod",
 				},
 			},
 		},
 	}
 
-	result, err := svc.DescribeSecurityGroups(input)
+	result, err := svc.DescribeSecurityGroups(ctx, input)
 	// It it is not created, do it
 	if len(result.SecurityGroups) == 0 || err != nil {
-		return CreateDevpodSecurityGroup(provider)
+		return CreateDevpodSecurityGroup(ctx, provider)
 	}
 
 	return "", nil
 }
 
-func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
+func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string, error) {
 	var err error
 
-	svc := ec2.New(provider.Session)
-	vpc, err := GetDevpodVPC(provider)
+	svc := ec2.NewFromConfig(provider.AwsConfig)
+	vpc, err := GetDevpodVPC(ctx, provider)
 	if err != nil {
 		return "", err
 	}
 
 	// Create the security group with the VPC, name, and description.
-	result, err := svc.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+	result, err := svc.CreateSecurityGroup(ctx, &ec2.CreateSecurityGroupInput{
 		GroupName:   aws.String("devpod"),
 		Description: aws.String("Default Security Group for DevPod"),
-		TagSpecifications: []*ec2.TagSpecification{
+		TagSpecifications: []types.TagSpecification{
 			{
-				ResourceType: aws.String("security-group"),
-				Tags: []*ec2.Tag{
+				ResourceType: "security-group",
+				Tags: []types.Tag{
 					{
 						Key:   aws.String("devpod"),
 						Value: aws.String("devpod"),
@@ -317,22 +310,24 @@ func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 	groupID := *result.GroupId
 
 	// Add permissions to the security group
-	_, err = svc.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
+	_, err = svc.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId: aws.String(groupID),
-		IpPermissions: []*ec2.IpPermission{
-			(&ec2.IpPermission{}).
-				SetIpProtocol("tcp").
-				SetFromPort(22).
-				SetToPort(22).
-				SetIpRanges([]*ec2.IpRange{
-					(&ec2.IpRange{}).
-						SetCidrIp("0.0.0.0/0"),
-				}),
+		IpPermissions: []types.IpPermission{
+			types.IpPermission{
+				IpProtocol: aws.String("tcp"),
+				FromPort:   aws.Int32(22),
+				ToPort:     aws.Int32(22),
+				IpRanges: []types.IpRange{
+					types.IpRange{
+						CidrIp: aws.String("0.0.0.0/0"),
+					},
+				},
+			},
 		},
-		TagSpecifications: []*ec2.TagSpecification{
+		TagSpecifications: []types.TagSpecification{
 			{
-				ResourceType: aws.String("security-group-rule"),
-				Tags: []*ec2.Tag{
+				ResourceType: "security-group-rule",
+				Tags: []types.Tag{
 					{
 						Key:   aws.String("devpod"),
 						Value: aws.String("devpod-ingress"),
@@ -348,31 +343,31 @@ func CreateDevpodSecurityGroup(provider *AwsProvider) (string, error) {
 	return groupID, nil
 }
 
-func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstancesOutput, error) {
-	svc := ec2.New(sess)
+func GetDevpodInstance(ctx context.Context, cfg aws.Config, name string) (*ec2.DescribeInstancesOutput, error) {
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name: aws.String("tag:devpod"),
-				Values: []*string{
-					aws.String(name),
+				Values: []string{
+					name,
 				},
 			},
 			{
 				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("pending"),
-					aws.String("running"),
-					aws.String("shutting-down"),
-					aws.String("stopped"),
-					aws.String("stopping"),
+				Values: []string{
+					"pending",
+					"running",
+					"shutting-down",
+					"stopped",
+					"stopping",
 				},
 			},
 		},
 	}
 
-	result, err := svc.DescribeInstances(input)
+	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -388,29 +383,30 @@ func GetDevpodInstance(sess *session.Session, name string) (*ec2.DescribeInstanc
 }
 
 func GetDevpodStoppedInstance(
-	sess *session.Session,
+	ctx context.Context,
+	cfg aws.Config,
 	name string,
 ) (*ec2.DescribeInstancesOutput, error) {
-	svc := ec2.New(sess)
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name: aws.String("tag:devpod"),
-				Values: []*string{
-					aws.String(name),
+				Values: []string{
+					name,
 				},
 			},
 			{
 				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("stopped"),
+				Values: []string{
+					"stopped",
 				},
 			},
 		},
 	}
 
-	result, err := svc.DescribeInstances(input)
+	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -426,29 +422,30 @@ func GetDevpodStoppedInstance(
 }
 
 func GetDevpodRunningInstance(
-	sess *session.Session,
+	ctx context.Context,
+	cfg aws.Config,
 	name string,
 ) (*ec2.DescribeInstancesOutput, error) {
-	svc := ec2.New(sess)
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name: aws.String("tag:devpod"),
-				Values: []*string{
-					aws.String(name),
+				Values: []string{
+					name,
 				},
 			},
 			{
 				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("running"),
+				Values: []string{
+					"running",
 				},
 			},
 		},
 	}
 
-	result, err := svc.DescribeInstances(input)
+	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -463,15 +460,15 @@ func GetDevpodRunningInstance(
 	return result, nil
 }
 
-func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, error) {
-	svc := ec2.New(sess)
+func Create(ctx context.Context, cfg aws.Config, providerAws *AwsProvider) (*ec2.RunInstancesOutput, error) {
+	svc := ec2.NewFromConfig(cfg)
 
-	devpodSG, err := GetDevpodSecurityGroup(providerAws)
+	devpodSG, err := GetDevpodSecurityGroup(ctx, providerAws)
 	if err != nil {
 		return nil, err
 	}
 
-	volSizeI64 := int64(providerAws.Config.DiskSizeGB)
+	volSizeI32 := int32(providerAws.Config.DiskSizeGB)
 
 	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
 	if err != nil {
@@ -480,24 +477,24 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 
 	instance := &ec2.RunInstancesInput{
 		ImageId:      aws.String(providerAws.Config.DiskImage),
-		InstanceType: aws.String(providerAws.Config.MachineType),
-		MinCount:     aws.Int64(1),
-		MaxCount:     aws.Int64(1),
-		SecurityGroupIds: []*string{
-			aws.String(devpodSG),
+		InstanceType: types.InstanceType(providerAws.Config.MachineType),
+		MinCount:     aws.Int32(1),
+		MaxCount:     aws.Int32(1),
+		SecurityGroupIds: []string{
+			devpodSG,
 		},
-		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: aws.String("/dev/sda1"),
-				Ebs: &ec2.EbsBlockDevice{
-					VolumeSize: &volSizeI64,
+				Ebs: &types.EbsBlockDevice{
+					VolumeSize: &volSizeI32,
 				},
 			},
 		},
-		TagSpecifications: []*ec2.TagSpecification{
+		TagSpecifications: []types.TagSpecification{
 			{
-				ResourceType: aws.String("instance"),
-				Tags: []*ec2.Tag{
+				ResourceType: "instance",
+				Tags: []types.Tag{
 					{
 						Key:   aws.String("devpod"),
 						Value: aws.String(providerAws.Config.MachineID),
@@ -508,9 +505,9 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 		UserData: &userData,
 	}
 
-	profile, err := GetDevpodInstanceProfile(providerAws)
+	profile, err := GetDevpodInstanceProfile(ctx, providerAws)
 	if err == nil {
-		instance.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+		instance.IamInstanceProfile = &types.IamInstanceProfileSpecification{
 			Arn: aws.String(profile),
 		}
 	}
@@ -519,7 +516,7 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 		instance.SubnetId = &providerAws.Config.SubnetID
 	}
 
-	result, err := svc.RunInstances(instance)
+	result, err := svc.RunInstances(ctx, instance)
 
 	if err != nil {
 		return nil, err
@@ -528,16 +525,16 @@ func Create(sess *session.Session, providerAws *AwsProvider) (*ec2.Reservation, 
 	return result, nil
 }
 
-func Start(sess *session.Session, instanceID *string) error {
-	svc := ec2.New(sess)
+func Start(ctx context.Context, cfg aws.Config, instanceID string) error {
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.StartInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instanceID,
 		},
 	}
 
-	_, err := svc.StartInstances(input)
+	_, err := svc.StartInstances(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -545,16 +542,16 @@ func Start(sess *session.Session, instanceID *string) error {
 	return err
 }
 
-func Stop(sess *session.Session, instanceID *string) error {
-	svc := ec2.New(sess)
+func Stop(ctx context.Context, cfg aws.Config, instanceID string) error {
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.StopInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instanceID,
 		},
 	}
 
-	_, err := svc.StopInstances(input)
+	_, err := svc.StopInstances(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -562,8 +559,8 @@ func Stop(sess *session.Session, instanceID *string) error {
 	return err
 }
 
-func Status(sess *session.Session, name string) (client.Status, error) {
-	result, err := GetDevpodInstance(sess, name)
+func Status(ctx context.Context, cfg aws.Config, name string) (client.Status, error) {
+	result, err := GetDevpodInstance(ctx, cfg, name)
 	if err != nil {
 		return client.StatusNotFound, err
 	}
@@ -575,27 +572,27 @@ func Status(sess *session.Session, name string) (client.Status, error) {
 	status := result.Reservations[0].Instances[0].State.Name
 
 	switch {
-	case *status == "running":
+	case status == "running":
 		return client.StatusRunning, nil
-	case *status == "stopped":
+	case status == "stopped":
 		return client.StatusStopped, nil
-	case *status == "terminated":
+	case status == "terminated":
 		return client.StatusNotFound, nil
 	default:
 		return client.StatusBusy, nil
 	}
 }
 
-func Delete(sess *session.Session, instanceID *string) error {
-	svc := ec2.New(sess)
+func Delete(ctx context.Context, cfg aws.Config, instanceID string) error {
+	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{
+		InstanceIds: []string{
 			instanceID,
 		},
 	}
 
-	_, err := svc.TerminateInstances(input)
+	_, err := svc.TerminateInstances(ctx, input)
 	if err != nil {
 		return err
 	}

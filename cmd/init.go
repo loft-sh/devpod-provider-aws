@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"os"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	AwsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/loft-sh/devpod/pkg/log"
@@ -41,52 +39,26 @@ func (cmd *InitCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	awsToken := os.Getenv("AWS_TOKEN")
-	if awsToken != "" {
-		var tokenJSON map[string]aws.AwsToken
-
-		err := json.Unmarshal([]byte(awsToken), &tokenJSON)
-		if err != nil {
-			return err
-		}
-
-		err = os.Setenv("AWS_ACCESS_KEY_ID", tokenJSON["Credentials"].AccessKeyID)
-		if err != nil {
-			return err
-		}
-
-		err = os.Setenv("AWS_SECRET_ACCESS_KEY", tokenJSON["Credentials"].SecretAccessKey)
-		if err != nil {
-			return err
-		}
-
-		err = os.Setenv("AWS_SESSION_TOKEN", tokenJSON["Credentials"].SessionToken)
-		if err != nil {
-			return err
-		}
-	}
-
 	config, err := options.FromEnv(true)
 	if err != nil {
 		return err
 	}
 
-	session, err := session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	cfg, err := AwsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = aws.GetDevpodRunningInstance(
-		session,
+		ctx,
+		cfg,
 		config.MachineID,
 	)
 	if err != nil {
 		return err
 	}
 
-	_, err = aws.GetDefaultAMI(session)
+	_, err = aws.GetDefaultAMI(ctx, cfg)
 	if err != nil {
 		return err
 	}
