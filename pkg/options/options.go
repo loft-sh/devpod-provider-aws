@@ -4,41 +4,30 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 var (
-	AWS_REGION        = "AWS_REGION"
-	AWS_INSTANCE_TYPE = "AWS_INSTANCE_TYPE"
-	AWS_AMI           = "AWS_AMI"
-	AWS_VPC_ID        = "AWS_VPC_ID"
-	AWS_DISK_SIZE     = "AWS_DISK_SIZE"
+	AWS_AMI                  = "AWS_AMI"
+	AWS_DISK_SIZE            = "AWS_DISK_SIZE"
+	AWS_INSTANCE_TYPE        = "AWS_INSTANCE_TYPE"
+	AWS_REGION               = "AWS_REGION"
+	AWS_SECURITY_GROUP_ID    = "AWS_SECURITY_GROUP_ID"
+	AWS_SUBNET_ID            = "AWS_SUBNET_ID"
+	AWS_VPC_ID               = "AWS_VPC_ID"
+	AWS_INSTANCE_PROFILE_ARN = "AWS_INSTANCE_PROFILE_ARN"
 )
 
 type Options struct {
-	DiskImage     string
-	DiskSizeGB    int
-	MachineFolder string
-	MachineID     string
-	MachineType   string
-	VpcID         string
-	Zone          string
-}
-
-func ConfigFromEnv() (Options, error) {
-	diskSize, err := strconv.Atoi(os.Getenv(AWS_DISK_SIZE))
-	if err != nil {
-		return Options{}, errors.Wrap(err, "parse disk size")
-	}
-
-	return Options{
-		MachineType: os.Getenv(AWS_INSTANCE_TYPE),
-		DiskImage:   os.Getenv(AWS_AMI),
-		DiskSizeGB:  diskSize,
-		Zone:        os.Getenv(AWS_REGION),
-		VpcID:       os.Getenv(AWS_VPC_ID),
-	}, nil
+	DiskImage          string
+	DiskSizeGB         int
+	MachineFolder      string
+	MachineID          string
+	MachineType        string
+	VpcID              string
+	SubnetID           string
+	SecurityGroupID    string
+	InstanceProfileArn string
+	Zone               string
 }
 
 func FromEnv(init bool) (*Options, error) {
@@ -46,14 +35,12 @@ func FromEnv(init bool) (*Options, error) {
 
 	var err error
 
-	retOptions.MachineType, err = fromEnvOrError("AWS_INSTANCE_TYPE")
+	retOptions.MachineType, err = fromEnvOrError(AWS_INSTANCE_TYPE)
 	if err != nil {
 		return nil, err
 	}
 
-	retOptions.DiskImage = os.Getenv("AWS_AMI")
-
-	diskSizeGB, err := fromEnvOrError("AWS_DISK_SIZE")
+	diskSizeGB, err := fromEnvOrError(AWS_DISK_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +49,13 @@ func FromEnv(init bool) (*Options, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	retOptions.DiskImage = os.Getenv(AWS_AMI)
+	retOptions.SecurityGroupID = os.Getenv(AWS_SECURITY_GROUP_ID)
+	retOptions.SubnetID = os.Getenv(AWS_SUBNET_ID)
+	retOptions.VpcID = os.Getenv(AWS_VPC_ID)
+	retOptions.InstanceProfileArn = os.Getenv(AWS_INSTANCE_PROFILE_ARN)
+	retOptions.Zone = os.Getenv(AWS_REGION)
 
 	// Return eraly if we're just doing init
 	if init {

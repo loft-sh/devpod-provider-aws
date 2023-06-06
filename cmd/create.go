@@ -19,7 +19,7 @@ func NewCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
 			if err != nil {
 				return err
 			}
@@ -44,20 +44,12 @@ func (cmd *CreateCmd) Run(
 	logs log.Logger,
 ) error {
 	// Ensure DevPod security group is created
-	devpodSG, err := aws.GetDevpodSecurityGroup(providerAws)
+	_, err := aws.GetDevpodSecurityGroup(ctx, providerAws)
 	if err != nil {
 		return err
 	}
 
-	// It it is not created, do it
-	if len(devpodSG.SecurityGroups) == 0 {
-		_, err = aws.CreateDevpodSecurityGroup(providerAws)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = aws.Create(providerAws.Session, providerAws)
+	_, err = aws.Create(ctx, providerAws.AwsConfig, providerAws)
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ func NewDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
 			if err != nil {
 				return err
 			}
@@ -45,7 +45,7 @@ func (cmd *DeleteCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	instances, err := aws.GetDevpodInstance(providerAws.Session, providerAws.Config.MachineID)
+	instances, err := aws.GetDevpodInstance(ctx, providerAws.AwsConfig, providerAws.Config.MachineID)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (cmd *DeleteCmd) Run(
 	if len(instances.Reservations) > 0 {
 		targetID := instances.Reservations[0].Instances[0].InstanceId
 
-		err = aws.Delete(providerAws.Session, targetID)
+		err = aws.Delete(ctx, providerAws.AwsConfig, *targetID)
 		if err != nil {
 			return err
 		}

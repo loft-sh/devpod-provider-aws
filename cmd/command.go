@@ -23,7 +23,7 @@ func NewCommandCmd() *cobra.Command {
 		Use:   "command",
 		Short: "Command an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
 			if err != nil {
 				return err
 			}
@@ -59,7 +59,7 @@ func (cmd *CommandCmd) Run(
 	}
 
 	// get instance
-	instance, err := aws.GetDevpodRunningInstance(providerAws.Session, providerAws.Config.MachineID)
+	instance, err := aws.GetDevpodRunningInstance(ctx, providerAws.AwsConfig, providerAws.Config.MachineID)
 	if err != nil {
 		return err
 	} else if len(instance.Reservations) == 0 {

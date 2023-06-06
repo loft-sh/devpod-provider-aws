@@ -21,7 +21,7 @@ func NewStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
 			if err != nil {
 				return err
 			}
@@ -46,7 +46,8 @@ func (cmd *StopCmd) Run(
 	logs log.Logger,
 ) error {
 	instances, err := aws.GetDevpodRunningInstance(
-		providerAws.Session,
+		ctx,
+		providerAws.AwsConfig,
 		providerAws.Config.MachineID,
 	)
 	if err != nil {
@@ -56,7 +57,7 @@ func (cmd *StopCmd) Run(
 	if len(instances.Reservations) > 0 {
 		targetID := instances.Reservations[0].Instances[0].InstanceId
 
-		err = aws.Stop(providerAws.Session, targetID)
+		err = aws.Stop(ctx, providerAws.AwsConfig, *targetID)
 		if err != nil {
 			return err
 		}
