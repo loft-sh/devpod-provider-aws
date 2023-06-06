@@ -313,12 +313,12 @@ func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (stri
 	_, err = svc.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId: aws.String(groupID),
 		IpPermissions: []types.IpPermission{
-			types.IpPermission{
+			{
 				IpProtocol: aws.String("tcp"),
 				FromPort:   aws.Int32(22),
 				ToPort:     aws.Int32(22),
 				IpRanges: []types.IpRange{
-					types.IpRange{
+					{
 						CidrIp: aws.String("0.0.0.0/0"),
 					},
 				},
