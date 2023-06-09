@@ -273,7 +273,7 @@ func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string,
 		return CreateDevpodSecurityGroup(ctx, provider)
 	}
 
-	return "", nil
+	return *result.SecurityGroups[0].GroupId, nil
 }
 
 func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string, error) {
