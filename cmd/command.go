@@ -9,7 +9,6 @@ import (
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
 	"github.com/loft-sh/devpod/pkg/ssh"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -66,24 +65,36 @@ func (cmd *CommandCmd) Run(
 		return fmt.Errorf("instance %s doesn't exist", providerAws.Config.MachineID)
 	}
 
-	// get external ip
-	if *instance.Reservations[0].Instances[0].PublicIpAddress == "" {
-		// clen
-		return fmt.Errorf(
-			"instance %s doesn't have an external nat ip",
-			providerAws.Config.MachineID,
-		)
+	// try private ip
+	if instance.Reservations[0].Instances[0].PrivateIpAddress != nil {
+		ip := *instance.Reservations[0].Instances[0].PrivateIpAddress
+		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
+		if err != nil {
+			logs.Debugf("error connecting to private ip [%s]: %v", ip, err)
+		} else {
+			// successfully connected to the private ip
+			defer sshClient.Close()
+
+			return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+		}
 	}
 
-	// get external address
-	externalIP := *instance.Reservations[0].Instances[0].PublicIpAddress
+	// try public ip
+	if instance.Reservations[0].Instances[0].PublicIpAddress != nil {
+		ip := *instance.Reservations[0].Instances[0].PublicIpAddress
+		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
+		if err != nil {
+			logs.Debugf("error connecting to public ip [%s]: %v", ip, err)
+		} else {
+			// successfully connected to the public ip
+			defer sshClient.Close()
 
-	sshClient, err := ssh.NewSSHClient("devpod", externalIP+":22", privateKey)
-	if err != nil {
-		return errors.Wrap(err, "create ssh client")
+			return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+		}
 	}
-	defer sshClient.Close()
 
-	// run command
-	return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
+	return fmt.Errorf(
+		"instance %s is not reachable",
+		providerAws.Config.MachineID,
+	)
 }
