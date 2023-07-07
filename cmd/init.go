@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	AwsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
@@ -58,7 +59,7 @@ func (cmd *InitCmd) Run(
 		return err
 	}
 
-	_, err = aws.GetDefaultAMI(ctx, cfg)
+	_, err = aws.GetDefaultAMI(ctx, cfg, config.MachineType)
 	if err != nil {
 		return err
 	}
