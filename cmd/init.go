@@ -58,7 +58,7 @@ func (cmd *InitCmd) Run(
 		return err
 	}
 
-	_, err = aws.GetDefaultAMI(ctx, cfg)
+	_, err = aws.GetDefaultAMI(ctx, cfg, config.MachineType)
 	if err != nil {
 		return err
 	}

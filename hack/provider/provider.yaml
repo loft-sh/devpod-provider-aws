@@ -81,6 +81,13 @@ options:
     description: The machine type to use.
     default: "c5.xlarge"
     suggestions:
+      - t2.2xlarge
+      - t2.large
+      - t2.medium
+      - t2.micro
+      - t2.nano
+      - t2.small
+      - t2.xlarge
       - t3.2xlarge
       - t3.large
       - t3.medium
@@ -88,24 +95,136 @@ options:
       - t3.nano
       - t3.small
       - t3.xlarge
-      - c5.large
-      - c5.xlarge
-      - c5.2xlarge
-      - c5.4xlarge
-      - c5.9xlarge
+      - t3a.2xlarge
+      - t3a.large
+      - t3a.medium
+      - t3a.micro
+      - t3a.nano
+      - t3a.small
+      - t3a.xlarge
+      - t4g.2xlarge
+      - t4g.large
+      - t4g.medium
+      - t4g.micro
+      - t4g.nano
+      - t4g.small
+      - t4g.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c4.large
+      - c4.xlarge
       - c5.12xlarge
       - c5.18xlarge
       - c5.24xlarge
-      - c5.metal
-      - c5d.large
-      - c5d.xlarge
-      - c5d.2xlarge
-      - c5d.4xlarge
-      - c5d.9xlarge
-      - c5d.12xlarge
-      - c5d.18xlarge
-      - c5d.24xlarge
-      - c5d.metal
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.large
+      - c5.xlarge
+      - c5a.12xlarge
+      - c5a.16xlarge
+      - c5a.24xlarge
+      - c5a.2xlarge
+      - c5a.4xlarge
+      - c5a.8xlarge
+      - c5a.large
+      - c5a.xlarge
+      - c6a.12xlarge
+      - c6a.16xlarge
+      - c6a.24xlarge
+      - c6a.2xlarge
+      - c6a.32xlarge
+      - c6a.48xlarge
+      - c6a.4xlarge
+      - c6a.8xlarge
+      - c6a.large
+      - c6a.xlarge
+      - c6g.12xlarge
+      - c6g.16xlarge
+      - c6g.2xlarge
+      - c6g.4xlarge
+      - c6g.8xlarge
+      - c6g.large
+      - c6g.medium
+      - c6g.xlarge
+      - c6i.12xlarge
+      - c6i.16xlarge
+      - c6i.24xlarge
+      - c6i.2xlarge
+      - c6i.32xlarge
+      - c6i.4xlarge
+      - c6i.8xlarge
+      - c6i.large
+      - c6i.xlarge
+      - c7g.12xlarge
+      - c7g.16xlarge
+      - c7g.2xlarge
+      - c7g.4xlarge
+      - c7g.8xlarge
+      - c7g.large
+      - c7g.medium
+      - c7g.xlarge
+      - cc2.8xlarge
+      - m4.10xlarge
+      - m4.16xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.large
+      - m4.xlarge
+      - m5.12xlarge
+      - m5.16xlarge
+      - m5.24xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5.large
+      - m5.xlarge
+      - m5a.12xlarge
+      - m5a.16xlarge
+      - m5a.24xlarge
+      - m5a.2xlarge
+      - m5a.4xlarge
+      - m5a.8xlarge
+      - m5a.large
+      - m5a.xlarge
+      - m6a.12xlarge
+      - m6a.16xlarge
+      - m6a.24xlarge
+      - m6a.2xlarge
+      - m6a.32xlarge
+      - m6a.48xlarge
+      - m6a.4xlarge
+      - m6a.8xlarge
+      - m6a.large
+      - m6a.xlarge
+      - m6g.12xlarge
+      - m6g.16xlarge
+      - m6g.2xlarge
+      - m6g.4xlarge
+      - m6g.8xlarge
+      - m6g.large
+      - m6g.medium
+      - m6g.xlarge
+      - m6i.12xlarge
+      - m6i.16xlarge
+      - m6i.24xlarge
+      - m6i.2xlarge
+      - m6i.32xlarge
+      - m6i.4xlarge
+      - m6i.8xlarge
+      - m6i.large
+      - m6i.xlarge
+      - m7g.12xlarge
+      - m7g.16xlarge
+      - m7g.2xlarge
+      - m7g.4xlarge
+      - m7g.8xlarge
+      - m7g.large
+      - m7g.medium
+      - m7g.xlarge
+
+
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.
     default: 10m
