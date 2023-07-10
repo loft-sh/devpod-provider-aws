@@ -87,7 +87,7 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 
 	architecture := "x86_64"
 	// Graviton instances terminate with g
-	if strings.LastIndex(strings.Split(instanceType, ".")[0], "g") != -1 {
+	if strings.HasSuffix(strings.Split(instanceType, ".")[0], "g") {
 		architecture = "arm64"
 	}
 
