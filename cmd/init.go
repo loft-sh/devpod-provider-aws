@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	AwsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
