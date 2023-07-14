@@ -3,6 +3,7 @@ version: ##VERSION##
 description: |-
   DevPod on AWS Cloud
 icon: https://devpod.sh/assets/aws.svg
+iconDark: https://devpod.sh/assets/aws_dark.svg
 optionGroups:
   - options:
       - AWS_ACCESS_KEY_ID
