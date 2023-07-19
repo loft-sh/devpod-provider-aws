@@ -65,5 +65,6 @@ func (cmd *StatusCmd) Run(
 	}
 
 	_, err = fmt.Fprint(os.Stdout, status)
+
 	return err
 }

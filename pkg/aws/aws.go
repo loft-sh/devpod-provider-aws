@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"encoding/base64"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		config.DiskImage = image
 	}
 
@@ -63,6 +65,7 @@ func GetDevpodVPC(ctx context.Context, provider *AwsProvider) (string, error) {
 	}
 	// Get a list of VPCs so we can associate the group with the first VPC.
 	svc := ec2.NewFromConfig(provider.AwsConfig)
+
 	result, err := svc.DescribeVpcs(ctx, nil)
 	if err != nil {
 		return "", err
@@ -145,6 +148,7 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 		if err != nil {
 			return false
 		}
+
 		return iTime.After(jTime)
 	})
 
@@ -258,7 +262,7 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 	}
 
 	// TODO: need to find a better way to ensure
-	// role/profile propagation has succeded
+	// role/profile propagation has succeeded
 	time.Sleep(time.Second * 10)
 
 	return *response.InstanceProfile.Arn, nil
@@ -294,6 +298,7 @@ func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (stri
 	var err error
 
 	svc := ec2.NewFromConfig(provider.AwsConfig)
+
 	vpc, err := GetDevpodVPC(ctx, provider)
 	if err != nil {
 		return "", err
@@ -474,6 +479,43 @@ func GetDevpodRunningInstance(
 	return result, nil
 }
 
+func GetInstanceTags(providerAws *AwsProvider) []types.TagSpecification {
+	result := []types.TagSpecification{
+		{
+			ResourceType: "instance",
+			Tags: []types.Tag{
+				{
+					Key:   aws.String("devpod"),
+					Value: aws.String(providerAws.Config.MachineID),
+				},
+			},
+		},
+	}
+
+	reg := regexp.MustCompile(`Name=(\w+),Value=(\w+)`)
+
+	tagList := reg.FindAllString(providerAws.Config.InstanceTags, -1)
+	if tagList == nil {
+		return result
+	}
+
+	for _, tag := range tagList {
+		tagSplit := strings.Split(tag, ",")
+
+		name := strings.ReplaceAll(tagSplit[0], "Name=", "")
+		value := strings.ReplaceAll(tagSplit[1], "Value=", "")
+
+		tagSpec := types.Tag{
+			Key:   aws.String(name),
+			Value: aws.String(value),
+		}
+
+		result[0].Tags = append(result[0].Tags, tagSpec)
+	}
+
+	return result
+}
+
 func Create(ctx context.Context, cfg aws.Config, providerAws *AwsProvider) (*ec2.RunInstancesOutput, error) {
 	svc := ec2.NewFromConfig(cfg)
 
@@ -505,18 +547,8 @@ func Create(ctx context.Context, cfg aws.Config, providerAws *AwsProvider) (*ec2
 				},
 			},
 		},
-		TagSpecifications: []types.TagSpecification{
-			{
-				ResourceType: "instance",
-				Tags: []types.Tag{
-					{
-						Key:   aws.String("devpod"),
-						Value: aws.String(providerAws.Config.MachineID),
-					},
-				},
-			},
-		},
-		UserData: &userData,
+		TagSpecifications: GetInstanceTags(providerAws),
+		UserData:          &userData,
 	}
 
 	profile, err := GetDevpodInstanceProfile(ctx, providerAws)

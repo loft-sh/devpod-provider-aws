@@ -68,6 +68,7 @@ func (cmd *CommandCmd) Run(
 	// try private ip
 	if instance.Reservations[0].Instances[0].PrivateIpAddress != nil {
 		ip := *instance.Reservations[0].Instances[0].PrivateIpAddress
+
 		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
 		if err != nil {
 			logs.Debugf("error connecting to private ip [%s]: %v", ip, err)
@@ -82,6 +83,7 @@ func (cmd *CommandCmd) Run(
 	// try public ip
 	if instance.Reservations[0].Instances[0].PublicIpAddress != nil {
 		ip := *instance.Reservations[0].Instances[0].PublicIpAddress
+
 		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
 		if err != nil {
 			logs.Debugf("error connecting to public ip [%s]: %v", ip, err)

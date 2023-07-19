@@ -21,6 +21,7 @@ func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "Expected version as argument")
 		os.Exit(1)
+
 		return
 	}
 
@@ -30,6 +31,7 @@ func main() {
 	}
 
 	replaced := strings.Replace(string(content), "##VERSION##", os.Args[1], -1)
+
 	for k, v := range checksumMap {
 		checksum, err := File(k)
 		if err != nil {
@@ -51,6 +53,7 @@ func File(filePath string) (string, error) {
 	defer file.Close()
 
 	hash := sha256.New()
+
 	_, err = io.Copy(hash, file)
 	if err != nil {
 		return "", err
