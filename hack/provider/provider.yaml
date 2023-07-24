@@ -16,6 +16,7 @@ optionGroups:
       - AWS_SUBNET_ID
       - AWS_SECURITY_GROUP_ID
       - AWS_INSTANCE_PROFILE_ARN
+      - AWS_INSTANCE_TAGS
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -77,6 +78,9 @@ options:
     default: ""
   AWS_INSTANCE_PROFILE_ARN:
     description: The instance profile ARN to use
+    default: ""
+  AWS_INSTANCE_TAGS:
+    description: Additional flags to add to the instance in the form of "Name=XXX,Value=YYY Name=ZZZ,Value=WWW"
     default: ""
   AWS_INSTANCE_TYPE:
     description: The machine type to use.

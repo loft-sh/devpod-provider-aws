@@ -14,6 +14,7 @@ var (
 	AWS_SECURITY_GROUP_ID    = "AWS_SECURITY_GROUP_ID"
 	AWS_SUBNET_ID            = "AWS_SUBNET_ID"
 	AWS_VPC_ID               = "AWS_VPC_ID"
+	AWS_INSTANCE_TAGS        = "AWS_INSTANCE_TAGS"
 	AWS_INSTANCE_PROFILE_ARN = "AWS_INSTANCE_PROFILE_ARN"
 )
 
@@ -27,6 +28,7 @@ type Options struct {
 	SubnetID           string
 	SecurityGroupID    string
 	InstanceProfileArn string
+	InstanceTags       string
 	Zone               string
 }
 
@@ -54,6 +56,7 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.SecurityGroupID = os.Getenv(AWS_SECURITY_GROUP_ID)
 	retOptions.SubnetID = os.Getenv(AWS_SUBNET_ID)
 	retOptions.VpcID = os.Getenv(AWS_VPC_ID)
+	retOptions.InstanceTags = os.Getenv(AWS_INSTANCE_TAGS)
 	retOptions.InstanceProfileArn = os.Getenv(AWS_INSTANCE_PROFILE_ARN)
 	retOptions.Zone = os.Getenv(AWS_REGION)
 

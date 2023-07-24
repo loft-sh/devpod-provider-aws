@@ -19,6 +19,7 @@ func NewRootCmd() *cobra.Command {
 
 		PersistentPreRunE: func(cobraCmd *cobra.Command, args []string) error {
 			log.Default.MakeRaw()
+
 			return nil
 		},
 	}
@@ -38,10 +39,12 @@ func Execute() {
 		if exitErr, ok := err.(*ssh.ExitError); ok {
 			os.Exit(exitErr.ExitStatus())
 		}
+
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if len(exitErr.Stderr) > 0 {
 				log.Default.ErrorStreamOnly().Error(string(exitErr.Stderr))
 			}
+
 			os.Exit(exitErr.ExitCode())
 		}
 
@@ -60,5 +63,6 @@ func BuildRoot() *cobra.Command {
 	rootCmd.AddCommand(NewStartCmd())
 	rootCmd.AddCommand(NewStopCmd())
 	rootCmd.AddCommand(NewStatusCmd())
+
 	return rootCmd
 }

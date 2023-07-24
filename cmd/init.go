@@ -21,7 +21,6 @@ func NewInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Init account",
 		RunE: func(_ *cobra.Command, args []string) error {
-
 			return cmd.Run(
 				context.Background(),
 				provider.FromEnvironment(),
