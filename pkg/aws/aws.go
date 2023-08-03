@@ -61,7 +61,29 @@ type AwsProvider struct {
 func GetSubnetID(ctx context.Context, provider *AwsProvider) (string, error) {
 	svc := ec2.NewFromConfig(provider.AwsConfig)
 
+	// first search for a default devpod specific subnet, if it fails
+	// we search the subnet with most free IPs that can do also public-ipv4
 	input := &ec2.DescribeSubnetsInput{
+		Filters: []types.Filter{
+			{
+				Name: aws.String("tag:devpod"),
+				Values: []string{
+					"devpod",
+				},
+			},
+		},
+	}
+
+	result, err := svc.DescribeSubnets(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	if len(result.Subnets) > 0 {
+		return *result.Subnets[0].SubnetId, nil
+	}
+
+	input = &ec2.DescribeSubnetsInput{
 		Filters: []types.Filter{
 			{
 				Name: aws.String("vpc-id"),
@@ -78,7 +100,7 @@ func GetSubnetID(ctx context.Context, provider *AwsProvider) (string, error) {
 		},
 	}
 
-	result, err := svc.DescribeSubnets(ctx, input)
+	result, err = svc.DescribeSubnets(ctx, input)
 	if err != nil {
 		return "", err
 	}
