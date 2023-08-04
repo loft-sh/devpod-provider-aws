@@ -4,10 +4,9 @@ import (
 	"context"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
-	"github.com/pkg/errors"
-
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +44,11 @@ func (cmd *DeleteCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	instances, err := aws.GetDevpodInstance(ctx, providerAws.AwsConfig, providerAws.Config.MachineID)
+	instances, err := aws.GetDevpodInstance(
+		ctx,
+		providerAws.AwsConfig,
+		providerAws.Config.MachineID,
+	)
 	if err != nil {
 		return err
 	}
