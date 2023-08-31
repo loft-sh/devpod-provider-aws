@@ -328,9 +328,9 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 	return *response.InstanceProfile.Arn, nil
 }
 
-func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string, error) {
+func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) ([]string, error) {
 	if provider.Config.SecurityGroupID != "" {
-		return provider.Config.SecurityGroupID, nil
+		return strings.Split(provider.Config.SecurityGroupID, ","), nil
 	}
 
 	svc := ec2.NewFromConfig(provider.AwsConfig)
@@ -357,10 +357,20 @@ func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string,
 	result, err := svc.DescribeSecurityGroups(ctx, input)
 	// It it is not created, do it
 	if len(result.SecurityGroups) == 0 || err != nil {
-		return CreateDevpodSecurityGroup(ctx, provider)
+		sg, err := CreateDevpodSecurityGroup(ctx, provider)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{sg}, nil
 	}
 
-	return *result.SecurityGroups[0].GroupId, nil
+	sgs := []string{}
+	for res := range result.SecurityGroups {
+		sgs = append(sgs, *result.SecurityGroups[res].GroupId)
+	}
+
+	return sgs, nil
 }
 
 func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (string, error) {
@@ -608,13 +618,11 @@ func Create(
 	}
 
 	instance := &ec2.RunInstancesInput{
-		ImageId:      aws.String(providerAws.Config.DiskImage),
-		InstanceType: types.InstanceType(providerAws.Config.MachineType),
-		MinCount:     aws.Int32(1),
-		MaxCount:     aws.Int32(1),
-		SecurityGroupIds: []string{
-			devpodSG,
-		},
+		ImageId:          aws.String(providerAws.Config.DiskImage),
+		InstanceType:     types.InstanceType(providerAws.Config.MachineType),
+		MinCount:         aws.Int32(1),
+		MaxCount:         aws.Int32(1),
+		SecurityGroupIds: devpodSG,
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: aws.String("/dev/sda1"),
