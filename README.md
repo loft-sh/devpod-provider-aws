@@ -59,3 +59,7 @@ Options can either be set in `env` or on the command line, for example:
 ```sh
 devpod provider set-options -o AWS_AMI=my-custom-ami
 ```
+
+You can use a variety of AWS_INSTANCE_TYPE, from [this list](https://github.com/loft-sh/devpod-provider-aws/blob/ca830cc2b0f530436475ba29791391f80458ab6a/hack/provider/provider.yaml#L88), they include
+AMD, Intel and ARM64 instances, the list is automatically suggested when using
+the GUI application.
