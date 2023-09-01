@@ -328,7 +328,7 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 	return *response.InstanceProfile.Arn, nil
 }
 
-func GetDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) ([]string, error) {
+func GetDevpodSecurityGroups(ctx context.Context, provider *AwsProvider) ([]string, error) {
 	if provider.Config.SecurityGroupID != "" {
 		return strings.Split(provider.Config.SecurityGroupID, ","), nil
 	}
@@ -605,7 +605,7 @@ func Create(
 ) (*ec2.RunInstancesOutput, error) {
 	svc := ec2.NewFromConfig(cfg)
 
-	devpodSG, err := GetDevpodSecurityGroup(ctx, providerAws)
+	devpodSG, err := GetDevpodSecurityGroups(ctx, providerAws)
 	if err != nil {
 		return nil, err
 	}
