@@ -44,7 +44,7 @@ func (cmd *CreateCmd) Run(
 	logs log.Logger,
 ) error {
 	// Ensure DevPod security group is created
-	_, err := aws.GetDevpodSecurityGroup(ctx, providerAws)
+	_, err := aws.GetDevpodSecurityGroups(ctx, providerAws)
 	if err != nil {
 		return err
 	}
