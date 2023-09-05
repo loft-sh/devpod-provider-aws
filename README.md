@@ -40,7 +40,7 @@ This provider has the following options
 | AWS_INSTANCE_TYPE | false    | The machine type to use.              | c5.xlarge               |
 | AWS_REGION        | true     | The aws cloud region to create the VM |                         |
 | AWS_VPC_ID        | false    | The vpc id to use.                    |                         |
-| AWS_SECURITY_GROUP_ID | false | The security group ID for the VM     |  created if not specified |
+| AWS_SECURITY_GROUP_ID | false | The security group ID is a comma separated list of IDs for the VM     |  created if not specified |
 | AWS_SUBNET_ID         | false | The subnet ID for the VM | created if not specified |
 | AWS_INSTANCE_TAGS     | false | Additional flags for the VM in the form of "Name=XXX,Value=YYY " | |
 | AWS_INSTANCE_PROFILE_ARN  | false | The ARN of the instance profile to use for the VM | created if not specified |

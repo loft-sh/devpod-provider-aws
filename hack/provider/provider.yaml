@@ -71,7 +71,7 @@ options:
     description: The subnet id to use.
     default: ""
   AWS_SECURITY_GROUP_ID:
-    description: The security group id to use.
+    description: The security group id to use. Multiple can be specified by separating with a comma.
     default: ""
   AWS_AMI:
     description: The disk image to use.
