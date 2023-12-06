@@ -11,6 +11,7 @@ optionGroups:
       - AWS_PROFILE
       - AWS_AMI
       - AWS_DISK_SIZE
+      - AWS_ROOT_DEVICE
       - AWS_INSTANCE_TYPE
       - AWS_VPC_ID
       - AWS_SUBNET_ID
@@ -64,6 +65,9 @@ options:
   AWS_DISK_SIZE:
     description: The disk size to use.
     default: "40"
+  AWS_ROOT_DEVICE:
+    description: The root device of the disk image.
+    default: ""
   AWS_VPC_ID:
     description: The vpc id to use.
     default: ""

@@ -9,6 +9,7 @@ import (
 var (
 	AWS_AMI                  = "AWS_AMI"
 	AWS_DISK_SIZE            = "AWS_DISK_SIZE"
+	AWS_ROOT_DEVICE          = "AWS_ROOT_DEVICE"
 	AWS_INSTANCE_TYPE        = "AWS_INSTANCE_TYPE"
 	AWS_REGION               = "AWS_REGION"
 	AWS_SECURITY_GROUP_ID    = "AWS_SECURITY_GROUP_ID"
@@ -21,6 +22,7 @@ var (
 type Options struct {
 	DiskImage          string
 	DiskSizeGB         int
+	RootDevice         string
 	MachineFolder      string
 	MachineID          string
 	MachineType        string
@@ -53,6 +55,7 @@ func FromEnv(init bool) (*Options, error) {
 	}
 
 	retOptions.DiskImage = os.Getenv(AWS_AMI)
+	retOptions.RootDevice = os.Getenv(AWS_ROOT_DEVICE)
 	retOptions.SecurityGroupID = os.Getenv(AWS_SECURITY_GROUP_ID)
 	retOptions.SubnetID = os.Getenv(AWS_SUBNET_ID)
 	retOptions.VpcID = os.Getenv(AWS_VPC_ID)

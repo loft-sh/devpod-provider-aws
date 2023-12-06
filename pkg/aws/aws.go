@@ -41,6 +41,14 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		config.DiskImage = image
 	}
 
+	if config.RootDevice == "" {
+		device, err := GetAMIRootDevice(ctx, cfg, config.DiskImage)
+		if err != nil {
+			return nil, err
+		}
+		config.RootDevice = device
+	}
+
 	// create provider
 	provider := &AwsProvider{
 		Config:    config,
@@ -213,6 +221,23 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 	})
 
 	return *result.Images[0].ImageId, nil
+}
+
+func GetAMIRootDevice(ctx context.Context, cfg aws.Config, diskImage string) (string, error) {
+	svc := ec2.NewFromConfig(cfg)
+
+	input := &ec2.DescribeImagesInput{
+		ImageIds: []string{
+			diskImage,
+		},
+	}
+	result, err := svc.DescribeImages(ctx, input)
+
+	if err != nil {
+		return "", err
+	}
+
+	return *result.Images[0].RootDeviceName, nil
 }
 
 func GetDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (string, error) {
@@ -625,7 +650,7 @@ func Create(
 		SecurityGroupIds: devpodSG,
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
-				DeviceName: aws.String("/dev/sda1"),
+				DeviceName: aws.String(providerAws.Config.RootDevice),
 				Ebs: &types.EbsBlockDevice{
 					VolumeSize: &volSizeI32,
 				},
