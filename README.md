@@ -39,7 +39,7 @@ This provider has the following options
 |-------------------|----------|---------------------------------------|-------------------------|
 | AWS_AMI           | false    | The disk image to use.                | latest ubuntu in the region with proper architecture for the instance  |
 | AWS_DISK_SIZE     | false    | The disk size to use.                 | 40                      |
-| AWS_ROOT_DEVICE   | false    | The ID of the root device.            | whatever is defined in the AMI  |
+| AWS_ROOT_DEVICE   | false    | The ID of the root device.            | The `RootDeviceName` property of the AMI, or `/dev/sda1` if undefined  |
 | AWS_INSTANCE_TYPE | false    | The machine type to use.              | c5.xlarge               |
 | AWS_REGION        | true     | The aws cloud region to create the VM |                         |
 | AWS_VPC_ID        | false    | The vpc id to use.                    |                         |
