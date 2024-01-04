@@ -237,6 +237,11 @@ func GetAMIRootDevice(ctx context.Context, cfg aws.Config, diskImage string) (st
 		return "", err
 	}
 
+	// Struct spec: https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#Image
+	if len(result.Images) == 0 || *result.Images[0].RootDeviceName == "" {
+		return "/dev/sda1", nil
+	}
+
 	return *result.Images[0].RootDeviceName, nil
 }
 
