@@ -297,7 +297,8 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
             "Action": [
                 "ec2:DescribeInstances",
                 "ec2:StopInstances",
-                "ec2:DescribeInstanceStatus"
+                "ec2:DescribeInstanceStatus",
+				"ec2:DescribeInstanceConnectEndpoints"
             ],
             "Resource": "*"
         }
