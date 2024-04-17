@@ -18,19 +18,27 @@ var checksumMap = map[string]string{
 }
 
 func main() {
-	if len(os.Args) != 2 {
+	if len(os.Args) != 4 {
 		fmt.Fprintln(os.Stderr, "Expected version as argument")
 		os.Exit(1)
 
 		return
 	}
 
-	content, err := os.ReadFile("./hack/provider/provider.yaml")
+	releaseVersion := os.Args[1]
+	buildVersion := os.Args[2]
+	projectRoot := os.Args[3]
+
+	content, err := os.ReadFile(providerConfigPath(buildVersion))
 	if err != nil {
 		panic(err)
 	}
 
-	replaced := strings.Replace(string(content), "##VERSION##", os.Args[1], -1)
+	replaced := strings.Replace(string(content), "##VERSION##", releaseVersion, -1)
+
+	if buildVersion == "dev" {
+		replaced = strings.Replace(replaced, "##PROJECT_ROOT##", projectRoot, -1)
+	}
 
 	for k, v := range checksumMap {
 		checksum, err := File(k)
@@ -53,11 +61,18 @@ func File(filePath string) (string, error) {
 	defer file.Close()
 
 	hash := sha256.New()
-
 	_, err = io.Copy(hash, file)
 	if err != nil {
 		return "", err
 	}
 
 	return strings.ToLower(hex.EncodeToString(hash.Sum(nil))), nil
+}
+
+func providerConfigPath(buildVersion string) string {
+	if buildVersion == "prod" {
+		return "./hack/provider/provider.yaml"
+	} else {
+		return "./hack/provider/provider-dev.yaml"
+	}
 }

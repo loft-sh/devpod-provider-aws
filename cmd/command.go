@@ -3,12 +3,17 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
+	"strconv"
+	"time"
 
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
 	"github.com/loft-sh/devpod/pkg/log"
 	"github.com/loft-sh/devpod/pkg/provider"
 	"github.com/loft-sh/devpod/pkg/ssh"
+	devssh "github.com/loft-sh/devpod/pkg/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -69,6 +74,53 @@ func (cmd *CommandCmd) Run(
 		return fmt.Errorf("instance %s doesn't exist", providerAws.Config.MachineID)
 	}
 
+	if providerAws.Config.UseInstanceConnectEndpoint {
+		instanceID := *instance.Reservations[0].Instances[0].InstanceId
+		endpointID := providerAws.Config.InstanceConnectEndpointID
+
+		var err error
+		port, err := findAvailablePort()
+		if err != nil {
+			return err
+		}
+		addr := "localhost:" + port
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		connectArgs := []string{
+			"ec2-instance-connect",
+			"open-tunnel",
+			"--instance-id", instanceID,
+			"--local-port", port,
+		}
+		if endpointID != "" {
+			connectArgs = append(connectArgs, "--instance-connect-endpoint-id", endpointID)
+		}
+		cmd := exec.CommandContext(cancelCtx, "aws", connectArgs...)
+		// open tunnel in background
+		if err = cmd.Start(); err != nil {
+			return fmt.Errorf("start tunnel: %w", err)
+		}
+		defer func() {
+			err = cmd.Process.Kill()
+		}()
+
+		timeoutCtx, cancelFn := context.WithTimeout(ctx, 30*time.Second)
+		defer cancelFn()
+		waitForPort(timeoutCtx, addr)
+
+		client, err := devssh.NewSSHClient("devpod", addr, privateKey)
+		if err != nil {
+			return err
+		}
+
+		err = devssh.Run(ctx, client, command, os.Stdin, os.Stdout, os.Stderr)
+		if err != nil {
+			return err
+		}
+
+		return err
+	}
+
 	// try public ip
 	if instance.Reservations[0].Instances[0].PublicIpAddress != nil {
 		ip := *instance.Reservations[0].Instances[0].PublicIpAddress
@@ -103,4 +155,31 @@ func (cmd *CommandCmd) Run(
 		"instance %s is not reachable",
 		providerAws.Config.MachineID,
 	)
+}
+
+func waitForPort(ctx context.Context, addr string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			l, err := net.Listen("tcp", addr)
+			if err != nil {
+				// port is taken
+				return
+			}
+			_ = l.Close()
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+}
+func findAvailablePort() (string, error) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return "", err
+	}
+	defer l.Close()
+
+	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port), nil
 }

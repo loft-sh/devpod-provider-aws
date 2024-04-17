@@ -7,31 +7,35 @@ import (
 )
 
 var (
-	AWS_AMI                  = "AWS_AMI"
-	AWS_DISK_SIZE            = "AWS_DISK_SIZE"
-	AWS_ROOT_DEVICE          = "AWS_ROOT_DEVICE"
-	AWS_INSTANCE_TYPE        = "AWS_INSTANCE_TYPE"
-	AWS_REGION               = "AWS_REGION"
-	AWS_SECURITY_GROUP_ID    = "AWS_SECURITY_GROUP_ID"
-	AWS_SUBNET_ID            = "AWS_SUBNET_ID"
-	AWS_VPC_ID               = "AWS_VPC_ID"
-	AWS_INSTANCE_TAGS        = "AWS_INSTANCE_TAGS"
-	AWS_INSTANCE_PROFILE_ARN = "AWS_INSTANCE_PROFILE_ARN"
+	AWS_AMI                           = "AWS_AMI"
+	AWS_DISK_SIZE                     = "AWS_DISK_SIZE"
+	AWS_ROOT_DEVICE                   = "AWS_ROOT_DEVICE"
+	AWS_INSTANCE_TYPE                 = "AWS_INSTANCE_TYPE"
+	AWS_REGION                        = "AWS_REGION"
+	AWS_SECURITY_GROUP_ID             = "AWS_SECURITY_GROUP_ID"
+	AWS_SUBNET_ID                     = "AWS_SUBNET_ID"
+	AWS_VPC_ID                        = "AWS_VPC_ID"
+	AWS_INSTANCE_TAGS                 = "AWS_INSTANCE_TAGS"
+	AWS_INSTANCE_PROFILE_ARN          = "AWS_INSTANCE_PROFILE_ARN"
+	AWS_USE_INSTANCE_CONNECT_ENDPOINT = "AWS_USE_INSTANCE_CONNECT_ENDPOINT"
+	AWS_INSTANCE_CONNECT_ENDPOINT_ID  = "AWS_INSTANCE_CONNECT_ENDPOINT_ID"
 )
 
 type Options struct {
-	DiskImage          string
-	DiskSizeGB         int
-	RootDevice         string
-	MachineFolder      string
-	MachineID          string
-	MachineType        string
-	VpcID              string
-	SubnetID           string
-	SecurityGroupID    string
-	InstanceProfileArn string
-	InstanceTags       string
-	Zone               string
+	DiskImage                  string
+	DiskSizeGB                 int
+	RootDevice                 string
+	MachineFolder              string
+	MachineID                  string
+	MachineType                string
+	VpcID                      string
+	SubnetID                   string
+	SecurityGroupID            string
+	InstanceProfileArn         string
+	InstanceTags               string
+	Zone                       string
+	UseInstanceConnectEndpoint bool
+	InstanceConnectEndpointID  string
 }
 
 func FromEnv(init bool) (*Options, error) {
@@ -62,6 +66,8 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.InstanceTags = os.Getenv(AWS_INSTANCE_TAGS)
 	retOptions.InstanceProfileArn = os.Getenv(AWS_INSTANCE_PROFILE_ARN)
 	retOptions.Zone = os.Getenv(AWS_REGION)
+	retOptions.UseInstanceConnectEndpoint = os.Getenv(AWS_USE_INSTANCE_CONNECT_ENDPOINT) == "true"
+	retOptions.InstanceConnectEndpointID = os.Getenv(AWS_INSTANCE_CONNECT_ENDPOINT_ID)
 
 	// Return eraly if we're just doing init
 	if init {
