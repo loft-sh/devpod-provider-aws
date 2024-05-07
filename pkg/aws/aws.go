@@ -232,7 +232,6 @@ func GetAMIRootDevice(ctx context.Context, cfg aws.Config, diskImage string) (st
 		},
 	}
 	result, err := svc.DescribeImages(ctx, input)
-
 	if err != nil {
 		return "", err
 	}
@@ -295,10 +294,7 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
             "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
-                "ec2:DescribeInstances",
                 "ec2:StopInstances",
-                "ec2:DescribeInstanceStatus",
-				"ec2:DescribeInstanceConnectEndpoints"
             ],
             "Resource": "*"
         }
