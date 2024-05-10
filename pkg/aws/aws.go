@@ -41,14 +41,6 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		config.DiskImage = image
 	}
 
-	if config.RootDevice == "" {
-		device, err := GetAMIRootDevice(ctx, cfg, config.DiskImage)
-		if err != nil {
-			return nil, err
-		}
-		config.RootDevice = device
-	}
-
 	// create provider
 	provider := &AwsProvider{
 		Config:    config,
@@ -293,8 +285,7 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
     {
       "Sid": "Describe",
       "Action": [
-        "ec2:DescribeInstances",
-        "ec2:DescribeImages"
+        "ec2:DescribeInstances"
       ],
       "Effect": "Allow",
       "Resource": "*"
@@ -636,6 +627,14 @@ func Create(
 	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
 	if err != nil {
 		return nil, err
+	}
+
+	if providerAws.Config.RootDevice == "" {
+		device, err := GetAMIRootDevice(ctx, cfg, providerAws.Config.DiskImage)
+		if err != nil {
+			return nil, err
+		}
+		providerAws.Config.RootDevice = device
 	}
 
 	instance := &ec2.RunInstancesInput{
