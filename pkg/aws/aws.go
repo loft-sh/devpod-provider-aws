@@ -288,39 +288,33 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 
 	policyInput := &iam.PutRolePolicyInput{
 		PolicyDocument: aws.String(`{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "ec2:StopInstances",
-            ],
-            "Resource": "*"
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Describe",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeImages"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Stop",
+      "Action": [
+        "ec2:StopInstances"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringLike": {
+          "aws:userid": "*:${ec2:InstanceID}"
         }
-    ]
+      }
+    }
+  ]
 }`),
 		PolicyName: aws.String("devpod-ec2-policy"),
-		RoleName:   aws.String("devpod-ec2-role"),
-	}
-
-	_, err = svc.PutRolePolicy(ctx, policyInput)
-	if err != nil {
-		return "", err
-	}
-
-	policyInput = &iam.PutRolePolicyInput{
-		PolicyDocument: aws.String(`{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": "ec2:*",
-            "Effect": "Allow",
-            "Resource": "*"
-        }
-    ]
-}`),
-		PolicyName: aws.String("EC2Access"),
 		RoleName:   aws.String("devpod-ec2-role"),
 	}
 
