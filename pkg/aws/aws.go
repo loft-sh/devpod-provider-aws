@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +22,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+// detect if we're in an ec2 instance
+func isEC2Instance() bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "http://instance-data.ec2.internal", nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return true
+}
+
 func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 	config, err := options.FromEnv(false)
 	if err != nil {
@@ -32,7 +49,9 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		return nil, err
 	}
 
-	if config.DiskImage == "" {
+	isEC2 := isEC2Instance()
+
+	if config.DiskImage == "" && !isEC2 {
 		image, err := GetDefaultAMI(ctx, cfg, config.MachineType)
 		if err != nil {
 			return nil, err
@@ -41,7 +60,7 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		config.DiskImage = image
 	}
 
-	if config.RootDevice == "" {
+	if config.RootDevice == "" && !isEC2 {
 		device, err := GetAMIRootDevice(ctx, cfg, config.DiskImage)
 		if err != nil {
 			return nil, err
@@ -288,39 +307,32 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 
 	policyInput := &iam.PutRolePolicyInput{
 		PolicyDocument: aws.String(`{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "ec2:StopInstances",
-            ],
-            "Resource": "*"
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Describe",
+      "Action": [
+        "ec2:DescribeInstances"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Stop",
+      "Action": [
+        "ec2:StopInstances"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringLike": {
+          "aws:userid": "*:${ec2:InstanceID}"
         }
-    ]
+      }
+    }
+  ]
 }`),
 		PolicyName: aws.String("devpod-ec2-policy"),
-		RoleName:   aws.String("devpod-ec2-role"),
-	}
-
-	_, err = svc.PutRolePolicy(ctx, policyInput)
-	if err != nil {
-		return "", err
-	}
-
-	policyInput = &iam.PutRolePolicyInput{
-		PolicyDocument: aws.String(`{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": "ec2:*",
-            "Effect": "Allow",
-            "Resource": "*"
-        }
-    ]
-}`),
-		PolicyName: aws.String("EC2Access"),
 		RoleName:   aws.String("devpod-ec2-role"),
 	}
 
@@ -650,6 +662,11 @@ func Create(
 		MinCount:         aws.Int32(1),
 		MaxCount:         aws.Int32(1),
 		SecurityGroupIds: devpodSG,
+		MetadataOptions: &types.InstanceMetadataOptionsRequest{
+			HttpEndpoint:            types.InstanceMetadataEndpointStateEnabled,
+			HttpTokens:              types.HttpTokensStateRequired,
+			HttpPutResponseHopLimit: aws.Int32(1),
+		},
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: aws.String(providerAws.Config.RootDevice),
