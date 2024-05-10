@@ -662,6 +662,11 @@ func Create(
 		MinCount:         aws.Int32(1),
 		MaxCount:         aws.Int32(1),
 		SecurityGroupIds: devpodSG,
+		MetadataOptions: &types.InstanceMetadataOptionsRequest{
+			HttpEndpoint:            types.InstanceMetadataEndpointStateEnabled,
+			HttpTokens:              types.HttpTokensStateRequired,
+			HttpPutResponseHopLimit: aws.Int32(1),
+		},
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: aws.String(providerAws.Config.RootDevice),
