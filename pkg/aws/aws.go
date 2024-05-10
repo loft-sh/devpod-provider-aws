@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +22,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+// detect if we're in an ec2 instance
+func isEC2Instance() bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "http://instance-data.ec2.internal", nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return true
+}
+
 func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 	config, err := options.FromEnv(false)
 	if err != nil {
@@ -32,13 +49,23 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		return nil, err
 	}
 
-	if config.DiskImage == "" {
+	isEC2 := isEC2Instance()
+
+	if config.DiskImage == "" && !isEC2 {
 		image, err := GetDefaultAMI(ctx, cfg, config.MachineType)
 		if err != nil {
 			return nil, err
 		}
 
 		config.DiskImage = image
+	}
+
+	if config.RootDevice == "" && !isEC2 {
+		device, err := GetAMIRootDevice(ctx, cfg, config.DiskImage)
+		if err != nil {
+			return nil, err
+		}
+		config.RootDevice = device
 	}
 
 	// create provider
@@ -627,14 +654,6 @@ func Create(
 	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
 	if err != nil {
 		return nil, err
-	}
-
-	if providerAws.Config.RootDevice == "" {
-		device, err := GetAMIRootDevice(ctx, cfg, providerAws.Config.DiskImage)
-		if err != nil {
-			return nil, err
-		}
-		providerAws.Config.RootDevice = device
 	}
 
 	instance := &ec2.RunInstancesInput{
