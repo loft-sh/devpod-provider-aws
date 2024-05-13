@@ -613,7 +613,7 @@ func GetInstanceTags(providerAws *AwsProvider) []types.TagSpecification {
 		},
 	}
 
-	reg := regexp.MustCompile(`Name=(\w+),Value=(\w+)`)
+	reg := regexp.MustCompile(`Name=([A-Za-z0-9!"#$%&'()*+\-./:;<>?@[\\\]^_{|}~]+),Value=([A-Za-z0-9!"#$%&'()*+\-./:;<>?@[\\\]^_{|}~]+)`)
 
 	tagList := reg.FindAllString(providerAws.Config.InstanceTags, -1)
 	if tagList == nil {
