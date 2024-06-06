@@ -678,6 +678,15 @@ func Create(
 		TagSpecifications: GetInstanceTags(providerAws),
 		UserData:          &userData,
 	}
+	if providerAws.Config.UseSpotInstance {
+		instance.InstanceMarketOptions = &types.InstanceMarketOptionsRequest{
+			MarketType: "spot",
+			SpotOptions: &types.SpotMarketOptions{
+				SpotInstanceType:             "persistent",
+				InstanceInterruptionBehavior: "stop",
+			},
+		}
+	}
 
 	profile, err := GetDevpodInstanceProfile(ctx, providerAws)
 	if err == nil {
