@@ -678,6 +678,15 @@ func Create(
 		TagSpecifications: GetInstanceTags(providerAws),
 		UserData:          &userData,
 	}
+	if providerAws.Config.UseSpotInstance {
+		instance.InstanceMarketOptions = &types.InstanceMarketOptionsRequest{
+			MarketType: "spot",
+			SpotOptions: &types.SpotMarketOptions{
+				SpotInstanceType:             "persistent",
+				InstanceInterruptionBehavior: "stop",
+			},
+		}
+	}
 
 	profile, err := GetDevpodInstanceProfile(ctx, providerAws)
 	if err == nil {
@@ -769,18 +778,29 @@ func Status(ctx context.Context, cfg aws.Config, name string) (client.Status, er
 	}
 }
 
-func Delete(ctx context.Context, cfg aws.Config, instanceID string) error {
+func Delete(ctx context.Context, cfg aws.Config, instance types.Instance) error {
 	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []string{
-			instanceID,
+			*instance.InstanceId,
 		},
 	}
 
 	_, err := svc.TerminateInstances(ctx, input)
 	if err != nil {
 		return err
+	}
+
+	if instance.SpotInstanceRequestId != nil {
+		_, err = svc.CancelSpotInstanceRequests(ctx, &ec2.CancelSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: []string{
+				*instance.SpotInstanceRequestId,
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return err

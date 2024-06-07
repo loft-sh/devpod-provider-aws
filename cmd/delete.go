@@ -54,9 +54,9 @@ func (cmd *DeleteCmd) Run(
 	}
 
 	if len(instances.Reservations) > 0 {
-		targetID := instances.Reservations[0].Instances[0].InstanceId
+		instance := instances.Reservations[0].Instances[0]
 
-		err = aws.Delete(ctx, providerAws.AwsConfig, *targetID)
+		err = aws.Delete(ctx, providerAws.AwsConfig, instance)
 		if err != nil {
 			return err
 		}

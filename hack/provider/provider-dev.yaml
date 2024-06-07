@@ -20,6 +20,7 @@ optionGroups:
       - AWS_INSTANCE_TAGS
       - AWS_USE_INSTANCE_CONNECT_ENDPOINT
       - AWS_INSTANCE_CONNECT_ENDPOINT_ID
+      - AWS_USE_SPOT_INSTANCE
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -237,6 +238,10 @@ options:
   AWS_INSTANCE_CONNECT_ENDPOINT_ID:
     description: "Specify which instance connect endpoint to use. Only works with AWS_USE_INSTANCE_CONNECT_ENDPOINT enabled"
     default: ""
+  AWS_USE_SPOT_INSTANCE:
+    description: "Prefer the Spot instead of On-Demand instances."
+    type: boolean
+    default: false
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.
     default: 10m
