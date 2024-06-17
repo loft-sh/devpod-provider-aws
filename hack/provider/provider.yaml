@@ -20,6 +20,8 @@ optionGroups:
       - AWS_INSTANCE_TAGS
       - AWS_USE_INSTANCE_CONNECT_ENDPOINT
       - AWS_INSTANCE_CONNECT_ENDPOINT_ID
+      - AWS_USE_SESSION_MANAGER
+      - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -237,6 +239,13 @@ options:
   AWS_INSTANCE_CONNECT_ENDPOINT_ID:
     description: "Specify which instance connect endpoint to use. Only works with AWS_USE_INSTANCE_CONNECT_ENDPOINT enabled"
     default: ""
+  AWS_USE_SESSION_MANAGER:
+    description: "If defined, will try to connect to the ec2 instance via the AWS Session Manager"
+    type: boolean
+    default: false
+  AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER:
+    description: "Specify the KMS key ARN to use for the AWS Session Manager"
+    default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.
     default: 10m
@@ -260,10 +269,6 @@ agent:
         arch: amd64
         path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-amd64
         checksum: ##CHECKSUM_LINUX_AMD64##
-      - os: linux
-        arch: arm64
-        path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-arm64
-        checksum: ##CHECKSUM_LINUX_ARM64##
   exec:
     shutdown: |-
       ${AWS_PROVIDER} stop || shutdown
@@ -273,22 +278,6 @@ binaries:
       arch: amd64
       path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-amd64
       checksum: ##CHECKSUM_LINUX_AMD64##
-    - os: linux
-      arch: arm64
-      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-linux-arm64
-      checksum: ##CHECKSUM_LINUX_ARM64##
-    - os: darwin
-      arch: amd64
-      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-darwin-amd64
-      checksum: ##CHECKSUM_DARWIN_AMD64##
-    - os: darwin
-      arch: arm64
-      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-darwin-arm64
-      checksum: ##CHECKSUM_DARWIN_ARM64##
-    - os: windows
-      arch: amd64
-      path: https://github.com/loft-sh/devpod-provider-aws/releases/download/##VERSION##/devpod-provider-aws-windows-amd64.exe
-      checksum: ##CHECKSUM_WINDOWS_AMD64##
 exec:
   init: ${AWS_PROVIDER} init
   command: ${AWS_PROVIDER} command

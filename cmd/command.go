@@ -121,6 +121,55 @@ func (cmd *CommandCmd) Run(
 		return err
 	}
 
+	// try session manager
+	if providerAws.Config.UseSessionManager {
+		instanceID := *instance.Reservations[0].Instances[0].InstanceId
+
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var err error
+		port, err := findAvailablePort()
+		if err != nil {
+			return err
+		}
+
+		addr := "localhost:" + port
+		connectArgs := []string{
+			"ssm",
+			"start-session",
+			"--target", instanceID,
+			// "--document-name", "AWS-StartSSHSession",
+			// "--parameters", "'--portNumber=22'",
+			"--document-name", "AWS-StartPortForwardingSession",
+			"--parameters", fmt.Sprintf("'portNumber=22,localPortNumber=%s'", port),
+		}
+
+		// logs.Infof("connecting to instance %s with port forwarding", instanceID)
+		//logs.Infof("%v", connectArgs)
+		cmd := exec.CommandContext(cancelCtx, "aws", connectArgs...)
+		// open tunnel in background
+		if err = cmd.Start(); err != nil {
+			return fmt.Errorf("start tunnel: %w", err)
+		}
+		defer func() {
+			err = cmd.Cancel()
+		}()
+		timeoutCtx, cancelFn := context.WithTimeout(ctx, 30*time.Second)
+		defer cancelFn()
+		waitForPort(timeoutCtx, addr)
+
+		client, err := ssh.NewSSHClient("devpod", addr, privateKey)
+		if err != nil {
+			logs.Debugf("error connecting by session manager: %v", err)
+			return err
+		}
+
+		defer client.Close()
+		//logs.Infof("ssh run")
+		return ssh.Run(ctx, client, command, os.Stdin, os.Stdout, os.Stderr)
+	}
+
 	// try public ip
 	if instance.Reservations[0].Instances[0].PublicIpAddress != nil {
 		ip := *instance.Reservations[0].Instances[0].PublicIpAddress
