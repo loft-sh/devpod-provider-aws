@@ -83,14 +83,15 @@ func (cmd *CommandCmd) Run(
 		if err != nil {
 			return err
 		}
-		addr := "localhost:" + port
+		portStr := strconv.Itoa(port)
+		addr := "localhost:" + portStr
 		cancelCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		connectArgs := []string{
 			"ec2-instance-connect",
 			"open-tunnel",
 			"--instance-id", instanceID,
-			"--local-port", port,
+			"--local-port", portStr,
 		}
 		if endpointID != "" {
 			connectArgs = append(connectArgs, "--instance-connect-endpoint-id", endpointID)
@@ -174,12 +175,12 @@ func waitForPort(ctx context.Context, addr string) {
 	}
 
 }
-func findAvailablePort() (string, error) {
+func findAvailablePort() (int, error) {
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
-		return "", err
+		return -1, err
 	}
 	defer l.Close()
 
-	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port), nil
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
