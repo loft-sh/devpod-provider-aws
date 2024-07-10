@@ -1,1 +1,6 @@
-{"image":"mcr.microsoft.com/devcontainers/go","build":{}}
+{
+    "image":"mcr.microsoft.com/devcontainers/go:1.19",
+    "mounts": [
+        "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,consistency=cached"
+    ]
+}
