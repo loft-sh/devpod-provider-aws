@@ -38,6 +38,13 @@ func main() {
 
 	if buildVersion == "dev" {
 		replaced = strings.Replace(replaced, "##PROJECT_ROOT##", projectRoot, -1)
+	} else {
+		githubOwner, found := os.LookupEnv("GITHUB_OWNER")
+		if !found {
+			fmt.Fprintln(os.Stderr, "Expected GITHUB_OWNER environment variable")
+			os.Exit(1)
+		}
+		replaced = strings.ReplaceAll(replaced, "##GITHUB_OWNER##", githubOwner)
 	}
 
 	for k, v := range checksumMap {

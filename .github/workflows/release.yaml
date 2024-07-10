@@ -25,6 +25,7 @@ jobs:
           ./hack/build.sh
         env:
           RELEASE_VERSION: ${{ steps.get_version.outputs.release_version }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
       - name: Save release assets
         uses: softprops/action-gh-release@v1
         with:

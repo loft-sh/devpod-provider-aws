@@ -21,6 +21,8 @@ optionGroups:
       - AWS_USE_INSTANCE_CONNECT_ENDPOINT
       - AWS_INSTANCE_CONNECT_ENDPOINT_ID
       - AWS_USE_SPOT_INSTANCE
+      - AWS_USE_SESSION_MANAGER
+      - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -242,6 +244,13 @@ options:
     description: "Prefer the Spot instead of On-Demand instances."
     type: boolean
     default: false
+  AWS_USE_SESSION_MANAGER:
+    description: "If defined, will try to connect to the ec2 instance via the AWS Session Manager"
+    type: boolean
+    default: false
+  AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER:
+    description: "Specify the KMS key ARN to use for the AWS Session Manager"
+    default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.
     default: 10m
