@@ -341,6 +341,41 @@ func CreateDevpodInstanceProfile(ctx context.Context, provider *AwsProvider) (st
 		return "", err
 	}
 
+	ssmManagedInstanceCorePolicyInput := &iam.AttachRolePolicyInput{
+		PolicyArn: aws.String("arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"),
+		RoleName:  aws.String("devpod-ec2-role"),
+	}
+
+	_, err = svc.AttachRolePolicy(ctx, ssmManagedInstanceCorePolicyInput)
+	if err != nil {
+		return "", err
+	}
+
+	if provider.Config.KmsKeyARNForSessionManager != "" {
+		kmsDecryptPolicyInput := &iam.PutRolePolicyInput{
+			PolicyDocument: aws.String(fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DecryptSSM",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Effect": "Allow",
+      "Resource": "%s"
+    }
+  ]
+}`, provider.Config.KmsKeyARNForSessionManager)),
+			PolicyName: aws.String("ssm-kms-decrypt-policy"),
+			RoleName:   aws.String("devpod-ec2-role"),
+		}
+
+		_, err = svc.PutRolePolicy(ctx, kmsDecryptPolicyInput)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	instanceProfile := &iam.CreateInstanceProfileInput{
 		InstanceProfileName: aws.String("devpod-ec2-role"),
 	}
@@ -444,6 +479,11 @@ func CreateDevpodSecurityGroup(ctx context.Context, provider *AwsProvider) (stri
 	}
 
 	groupID := *result.GroupId
+
+	// No need to open ssh port if use session manager.
+	if provider.Config.UseSessionManager {
+		return groupID, nil
+	}
 
 	// Add permissions to the security group
 	_, err = svc.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{

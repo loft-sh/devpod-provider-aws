@@ -7,19 +7,21 @@ import (
 )
 
 var (
-	AWS_AMI                           = "AWS_AMI"
-	AWS_DISK_SIZE                     = "AWS_DISK_SIZE"
-	AWS_ROOT_DEVICE                   = "AWS_ROOT_DEVICE"
-	AWS_INSTANCE_TYPE                 = "AWS_INSTANCE_TYPE"
-	AWS_REGION                        = "AWS_REGION"
-	AWS_SECURITY_GROUP_ID             = "AWS_SECURITY_GROUP_ID"
-	AWS_SUBNET_ID                     = "AWS_SUBNET_ID"
-	AWS_VPC_ID                        = "AWS_VPC_ID"
-	AWS_INSTANCE_TAGS                 = "AWS_INSTANCE_TAGS"
-	AWS_INSTANCE_PROFILE_ARN          = "AWS_INSTANCE_PROFILE_ARN"
-	AWS_USE_INSTANCE_CONNECT_ENDPOINT = "AWS_USE_INSTANCE_CONNECT_ENDPOINT"
-	AWS_INSTANCE_CONNECT_ENDPOINT_ID  = "AWS_INSTANCE_CONNECT_ENDPOINT_ID"
-	AWS_USE_SPOT_INSTANCE             = "AWS_USE_SPOT_INSTANCE"
+	AWS_AMI                             = "AWS_AMI"
+	AWS_DISK_SIZE                       = "AWS_DISK_SIZE"
+	AWS_ROOT_DEVICE                     = "AWS_ROOT_DEVICE"
+	AWS_INSTANCE_TYPE                   = "AWS_INSTANCE_TYPE"
+	AWS_REGION                          = "AWS_REGION"
+	AWS_SECURITY_GROUP_ID               = "AWS_SECURITY_GROUP_ID"
+	AWS_SUBNET_ID                       = "AWS_SUBNET_ID"
+	AWS_VPC_ID                          = "AWS_VPC_ID"
+	AWS_INSTANCE_TAGS                   = "AWS_INSTANCE_TAGS"
+	AWS_INSTANCE_PROFILE_ARN            = "AWS_INSTANCE_PROFILE_ARN"
+	AWS_USE_INSTANCE_CONNECT_ENDPOINT   = "AWS_USE_INSTANCE_CONNECT_ENDPOINT"
+	AWS_INSTANCE_CONNECT_ENDPOINT_ID    = "AWS_INSTANCE_CONNECT_ENDPOINT_ID"
+	AWS_USE_SPOT_INSTANCE               = "AWS_USE_SPOT_INSTANCE"
+	AWS_USE_SESSION_MANAGER             = "AWS_USE_SESSION_MANAGER"
+	AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER = "AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER"
 )
 
 type Options struct {
@@ -38,6 +40,8 @@ type Options struct {
 	UseInstanceConnectEndpoint bool
 	InstanceConnectEndpointID  string
 	UseSpotInstance            bool
+	UseSessionManager          bool
+	KmsKeyARNForSessionManager string
 }
 
 func FromEnv(init bool) (*Options, error) {
@@ -71,6 +75,8 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.UseInstanceConnectEndpoint = os.Getenv(AWS_USE_INSTANCE_CONNECT_ENDPOINT) == "true"
 	retOptions.InstanceConnectEndpointID = os.Getenv(AWS_INSTANCE_CONNECT_ENDPOINT_ID)
 	retOptions.UseSpotInstance = os.Getenv(AWS_USE_SPOT_INSTANCE) == "true"
+	retOptions.UseSessionManager = os.Getenv(AWS_USE_SESSION_MANAGER) == "true"
+	retOptions.KmsKeyARNForSessionManager = os.Getenv(AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER)
 
 	// Return eraly if we're just doing init
 	if init {

@@ -83,14 +83,15 @@ func (cmd *CommandCmd) Run(
 		if err != nil {
 			return err
 		}
-		addr := "localhost:" + port
+		portStr := strconv.Itoa(port)
+		addr := "localhost:" + portStr
 		cancelCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		connectArgs := []string{
 			"ec2-instance-connect",
 			"open-tunnel",
 			"--instance-id", instanceID,
-			"--local-port", port,
+			"--local-port", portStr,
 		}
 		if endpointID != "" {
 			connectArgs = append(connectArgs, "--instance-connect-endpoint-id", endpointID)
@@ -119,6 +120,47 @@ func (cmd *CommandCmd) Run(
 		}
 
 		return err
+	}
+
+	// try session manager
+	if providerAws.Config.UseSessionManager {
+		instanceID := *instance.Reservations[0].Instances[0].InstanceId
+
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var err error
+		port, err := findAvailablePort()
+		if err != nil {
+			return err
+		}
+
+		addr := fmt.Sprintf("localhost:%d", port)
+		connectArgs, err := aws.CommandArgsSSMTunneling(instanceID, port)
+		if err != nil {
+			return err
+		}
+
+		cmd := exec.CommandContext(cancelCtx, "aws", connectArgs...)
+		// open tunnel in background
+		if err = cmd.Start(); err != nil {
+			return fmt.Errorf("start tunnel: %w", err)
+		}
+		defer func() {
+			err = cmd.Process.Kill()
+		}()
+		timeoutCtx, cancelFn := context.WithTimeout(ctx, 30*time.Second)
+		defer cancelFn()
+		waitForPort(timeoutCtx, addr)
+
+		client, err := ssh.NewSSHClient("devpod", addr, privateKey)
+		if err != nil {
+			logs.Debugf("error connecting by session manager: %v", err)
+			return err
+		}
+
+		defer client.Close()
+		return ssh.Run(ctx, client, command, os.Stdin, os.Stdout, os.Stderr)
 	}
 
 	// try public ip
@@ -174,12 +216,12 @@ func waitForPort(ctx context.Context, addr string) {
 	}
 
 }
-func findAvailablePort() (string, error) {
+func findAvailablePort() (int, error) {
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
-		return "", err
+		return -1, err
 	}
 	defer l.Close()
 
-	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port), nil
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
