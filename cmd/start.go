@@ -44,7 +44,7 @@ func (cmd *StartCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	instances, err := aws.GetDevpodStoppedInstance(
+	instance, err := aws.GetDevpodStoppedInstance(
 		ctx,
 		providerAws.AwsConfig,
 		providerAws.Config.MachineID,
@@ -53,10 +53,8 @@ func (cmd *StartCmd) Run(
 		return err
 	}
 
-	if len(instances.Reservations) > 0 {
-		targetID := instances.Reservations[0].Instances[0].InstanceId
-
-		err = aws.Start(ctx, providerAws.AwsConfig, *targetID)
+	if instance.Status != "" {
+		err = aws.Start(ctx, providerAws.AwsConfig, instance.InstanceID)
 		if err != nil {
 			return err
 		}

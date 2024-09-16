@@ -22,6 +22,7 @@ var (
 	AWS_USE_SPOT_INSTANCE               = "AWS_USE_SPOT_INSTANCE"
 	AWS_USE_SESSION_MANAGER             = "AWS_USE_SESSION_MANAGER"
 	AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER = "AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER"
+	AWS_ROUTE53_ZONE_NAME               = "AWS_ROUTE53_ZONE_NAME"
 )
 
 type Options struct {
@@ -42,6 +43,7 @@ type Options struct {
 	UseSpotInstance            bool
 	UseSessionManager          bool
 	KmsKeyARNForSessionManager string
+	Route53ZoneName            string
 }
 
 func FromEnv(init bool) (*Options, error) {
@@ -77,6 +79,7 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.UseSpotInstance = os.Getenv(AWS_USE_SPOT_INSTANCE) == "true"
 	retOptions.UseSessionManager = os.Getenv(AWS_USE_SESSION_MANAGER) == "true"
 	retOptions.KmsKeyARNForSessionManager = os.Getenv(AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER)
+	retOptions.Route53ZoneName = os.Getenv(AWS_ROUTE53_ZONE_NAME)
 
 	// Return eraly if we're just doing init
 	if init {

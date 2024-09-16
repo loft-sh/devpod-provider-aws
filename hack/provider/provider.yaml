@@ -23,6 +23,7 @@ optionGroups:
       - AWS_USE_SPOT_INSTANCE
       - AWS_USE_SESSION_MANAGER
       - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
+      - AWS_ROUTE53_ZONE_NAME
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -250,6 +251,9 @@ options:
     default: false
   AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER:
     description: "Specify the KMS key ARN to use for the AWS Session Manager"
+    default: ""
+  AWS_ROUTE53_ZONE_NAME:
+    description: "The zone name of a Route53 hosted zone to use for the machine's DNS name"
     default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.

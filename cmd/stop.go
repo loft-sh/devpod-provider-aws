@@ -53,10 +53,8 @@ func (cmd *StopCmd) Run(
 		return err
 	}
 
-	if len(instances.Reservations) > 0 {
-		targetID := instances.Reservations[0].Instances[0].InstanceId
-
-		err = aws.Stop(ctx, providerAws.AwsConfig, *targetID)
+	if instances.Status != "" {
+		err = aws.Stop(ctx, providerAws.AwsConfig, instances.InstanceID)
 		if err != nil {
 			return err
 		}

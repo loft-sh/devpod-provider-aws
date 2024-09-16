@@ -70,12 +70,11 @@ func (cmd *CommandCmd) Run(
 	)
 	if err != nil {
 		return err
-	} else if len(instance.Reservations) == 0 {
+	} else if instance.Status == "" {
 		return fmt.Errorf("instance %s doesn't exist", providerAws.Config.MachineID)
 	}
 
 	if providerAws.Config.UseInstanceConnectEndpoint {
-		instanceID := *instance.Reservations[0].Instances[0].InstanceId
 		endpointID := providerAws.Config.InstanceConnectEndpointID
 
 		var err error
@@ -90,7 +89,7 @@ func (cmd *CommandCmd) Run(
 		connectArgs := []string{
 			"ec2-instance-connect",
 			"open-tunnel",
-			"--instance-id", instanceID,
+			"--instance-id", instance.InstanceID,
 			"--local-port", portStr,
 		}
 		if endpointID != "" {
@@ -124,8 +123,6 @@ func (cmd *CommandCmd) Run(
 
 	// try session manager
 	if providerAws.Config.UseSessionManager {
-		instanceID := *instance.Reservations[0].Instances[0].InstanceId
-
 		cancelCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -136,7 +133,7 @@ func (cmd *CommandCmd) Run(
 		}
 
 		addr := fmt.Sprintf("localhost:%d", port)
-		connectArgs, err := aws.CommandArgsSSMTunneling(instanceID, port)
+		connectArgs, err := aws.CommandArgsSSMTunneling(instance.InstanceID, port)
 		if err != nil {
 			return err
 		}
@@ -163,40 +160,16 @@ func (cmd *CommandCmd) Run(
 		return ssh.Run(ctx, client, command, os.Stdin, os.Stdout, os.Stderr)
 	}
 
-	// try public ip
-	if instance.Reservations[0].Instances[0].PublicIpAddress != nil {
-		ip := *instance.Reservations[0].Instances[0].PublicIpAddress
-
-		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
-		if err != nil {
-			logs.Debugf("error connecting to public ip [%s]: %v", ip, err)
-		} else {
-			// successfully connected to the public ip
-			defer sshClient.Close()
-
-			return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
-		}
+	host := instance.Host()
+	sshClient, err := ssh.NewSSHClient("devpod", host+":22", privateKey)
+	if err != nil {
+		logs.Debugf("error connecting to ip [%s]: %v", host, err)
+		return err
+	} else {
+		// successfully connected to the public ip
+		defer sshClient.Close()
+		return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
 	}
-
-	// try private ip
-	if instance.Reservations[0].Instances[0].PrivateIpAddress != nil {
-		ip := *instance.Reservations[0].Instances[0].PrivateIpAddress
-
-		sshClient, err := ssh.NewSSHClient("devpod", ip+":22", privateKey)
-		if err != nil {
-			logs.Debugf("error connecting to private ip [%s]: %v", ip, err)
-		} else {
-			// successfully connected to the private ip
-			defer sshClient.Close()
-
-			return ssh.Run(ctx, sshClient, command, os.Stdin, os.Stdout, os.Stderr)
-		}
-	}
-
-	return fmt.Errorf(
-		"instance %s is not reachable",
-		providerAws.Config.MachineID,
-	)
 }
 
 func waitForPort(ctx context.Context, addr string) {
