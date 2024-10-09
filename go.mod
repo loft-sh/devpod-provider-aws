@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.98.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.19.12
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.28.3
+	github.com/aws/smithy-go v1.13.5
 	github.com/loft-sh/devpod v0.0.3-0.20230512100016-aee23bbc9aad
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
@@ -27,7 +28,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.19.0 // indirect
-	github.com/aws/smithy-go v1.13.5 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

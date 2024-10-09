@@ -1,3 +1,4 @@
 env
 devpod-provider-aws
 release
+.DS_Store
