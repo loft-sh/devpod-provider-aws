@@ -23,6 +23,8 @@ optionGroups:
       - AWS_USE_SPOT_INSTANCE
       - AWS_USE_SESSION_MANAGER
       - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
+      - AWS_USE_ROUTE53
+      - AWS_ROUTE53_ZONE_NAME
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -250,6 +252,13 @@ options:
     default: false
   AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER:
     description: "Specify the KMS key ARN to use for the AWS Session Manager"
+    default: ""
+  AWS_USE_ROUTE53:
+    description: "If defined, will try to create a Route53 record for the machine's IP address and use that hostname upon machine connection. If activated, the Route53 zone can be configured by AWS_ROUTE53_ZONE_NAME or of not, it is tried to lookup by the tag `devpod=devpod`"
+    type: boolean
+    default: false
+  AWS_ROUTE53_ZONE_NAME:
+    description: "The zone name of a Route53 hosted zone to use for the machine's DNS name"
     default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.

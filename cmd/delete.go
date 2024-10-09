@@ -44,7 +44,7 @@ func (cmd *DeleteCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	instances, err := aws.GetDevpodInstance(
+	instance, err := aws.GetDevpodInstance(
 		ctx,
 		providerAws.AwsConfig,
 		providerAws.Config.MachineID,
@@ -53,10 +53,8 @@ func (cmd *DeleteCmd) Run(
 		return err
 	}
 
-	if len(instances.Reservations) > 0 {
-		instance := instances.Reservations[0].Instances[0]
-
-		err = aws.Delete(ctx, providerAws.AwsConfig, instance)
+	if instance.Status != "" {
+		err = aws.Delete(ctx, providerAws, instance)
 		if err != nil {
 			return err
 		}

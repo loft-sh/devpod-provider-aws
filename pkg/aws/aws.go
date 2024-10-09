@@ -22,6 +22,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const tagKeyHostname = "devpod:hostname"
+
 // detect if we're in an ec2 instance
 func isEC2Instance() bool {
 	client := &http.Client{}
@@ -430,7 +432,7 @@ func GetDevpodSecurityGroups(ctx context.Context, provider *AwsProvider) ([]stri
 
 	result, err := svc.DescribeSecurityGroups(ctx, input)
 	// It it is not created, do it
-	if len(result.SecurityGroups) == 0 || err != nil {
+	if result == nil || len(result.SecurityGroups) == 0 || err != nil {
 		sg, err := CreateDevpodSecurityGroup(ctx, provider)
 		if err != nil {
 			return nil, err
@@ -523,7 +525,7 @@ func GetDevpodInstance(
 	ctx context.Context,
 	cfg aws.Config,
 	name string,
-) (*ec2.DescribeInstancesOutput, error) {
+) (Machine, error) {
 	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
@@ -549,7 +551,7 @@ func GetDevpodInstance(
 
 	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
 	}
 
 	// Sort slice in order to have the newest result first
@@ -559,14 +561,17 @@ func GetDevpodInstance(
 		)
 	})
 
-	return result, nil
+	if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
+		return Machine{}, nil
+	}
+	return NewMachineFromInstance(result.Reservations[0].Instances[0]), nil
 }
 
 func GetDevpodStoppedInstance(
 	ctx context.Context,
 	cfg aws.Config,
 	name string,
-) (*ec2.DescribeInstancesOutput, error) {
+) (Machine, error) {
 	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
@@ -588,7 +593,7 @@ func GetDevpodStoppedInstance(
 
 	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
 	}
 
 	// Sort slice in order to have the newest result first
@@ -598,14 +603,17 @@ func GetDevpodStoppedInstance(
 		)
 	})
 
-	return result, nil
+	if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
+		return Machine{}, nil
+	}
+	return NewMachineFromInstance(result.Reservations[0].Instances[0]), nil
 }
 
 func GetDevpodRunningInstance(
 	ctx context.Context,
 	cfg aws.Config,
 	name string,
-) (*ec2.DescribeInstancesOutput, error) {
+) (Machine, error) {
 	svc := ec2.NewFromConfig(cfg)
 
 	input := &ec2.DescribeInstancesInput{
@@ -627,7 +635,7 @@ func GetDevpodRunningInstance(
 
 	result, err := svc.DescribeInstances(ctx, input)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
 	}
 
 	// Sort slice in order to have the newest result first
@@ -637,19 +645,33 @@ func GetDevpodRunningInstance(
 		)
 	})
 
-	return result, nil
+	if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
+		return Machine{}, nil
+	}
+	return NewMachineFromInstance(result.Reservations[0].Instances[0]), nil
 }
 
-func GetInstanceTags(providerAws *AwsProvider) []types.TagSpecification {
+func GetInstanceTags(providerAws *AwsProvider, zone route53Zone) []types.TagSpecification {
+	tags := []types.Tag{
+		{
+			Key:   aws.String("devpod"),
+			Value: aws.String(providerAws.Config.MachineID),
+		},
+	}
+
+	// in case a Route53 zone is configured, we add the hostname of the machine as a tag in order to simplify looking up
+	// the machine's hostname on access.
+	if zone.id != "" {
+		tags = append(tags, types.Tag{
+			Key:   aws.String(tagKeyHostname),
+			Value: aws.String(providerAws.Config.MachineID + "." + zone.Name),
+		})
+	}
+
 	result := []types.TagSpecification{
 		{
 			ResourceType: "instance",
-			Tags: []types.Tag{
-				{
-					Key:   aws.String("devpod"),
-					Value: aws.String(providerAws.Config.MachineID),
-				},
-			},
+			Tags:         tags,
 		},
 	}
 
@@ -681,19 +703,27 @@ func Create(
 	ctx context.Context,
 	cfg aws.Config,
 	providerAws *AwsProvider,
-) (*ec2.RunInstancesOutput, error) {
+) (Machine, error) {
 	svc := ec2.NewFromConfig(cfg)
 
 	devpodSG, err := GetDevpodSecurityGroups(ctx, providerAws)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
 	}
 
 	volSizeI32 := int32(providerAws.Config.DiskSizeGB)
 
 	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
+	}
+
+	var r53Zone route53Zone
+	if providerAws.Config.UseRoute53Hostnames {
+		r53Zone, err = GetDevpodRoute53Zone(ctx, providerAws)
+		if err != nil {
+			return Machine{}, err
+		}
 	}
 
 	instance := &ec2.RunInstancesInput{
@@ -715,7 +745,7 @@ func Create(
 				},
 			},
 		},
-		TagSpecifications: GetInstanceTags(providerAws),
+		TagSpecifications: GetInstanceTags(providerAws, r53Zone),
 		UserData:          &userData,
 	}
 	if providerAws.Config.UseSpotInstance {
@@ -738,11 +768,11 @@ func Create(
 	if providerAws.Config.VpcID != "" && providerAws.Config.SubnetID == "" {
 		subnetID, err := GetSubnetID(ctx, providerAws)
 		if err != nil {
-			return nil, err
+			return Machine{}, err
 		}
 
 		if subnetID == "" {
-			return nil, fmt.Errorf("could not find a matching SubnetID in VPC %s, please specify one", providerAws.Config.VpcID)
+			return Machine{}, fmt.Errorf("could not find a matching SubnetID in VPC %s, please specify one", providerAws.Config.VpcID)
 		}
 
 		instance.SubnetId = &subnetID
@@ -754,10 +784,16 @@ func Create(
 
 	result, err := svc.RunInstances(ctx, instance)
 	if err != nil {
-		return nil, err
+		return Machine{}, err
 	}
 
-	return result, nil
+	if r53Zone.id != "" {
+		if err := UpsertDevpodRoute53Record(ctx, providerAws, r53Zone.id, providerAws.Config.MachineID+"."+r53Zone.Name, *result.Instances[0].PrivateIpAddress); err != nil {
+			return Machine{}, err
+		}
+	}
+
+	return NewMachineFromInstance(result.Instances[0]), nil
 }
 
 func Start(ctx context.Context, cfg aws.Config, instanceID string) error {
@@ -800,12 +836,11 @@ func Status(ctx context.Context, cfg aws.Config, name string) (client.Status, er
 		return client.StatusNotFound, err
 	}
 
-	if len(result.Reservations) == 0 {
+	if result.Status == "" {
 		return client.StatusNotFound, nil
 	}
 
-	status := result.Reservations[0].Instances[0].State.Name
-
+	status := result.Status
 	switch {
 	case status == "running":
 		return client.StatusRunning, nil
@@ -818,12 +853,12 @@ func Status(ctx context.Context, cfg aws.Config, name string) (client.Status, er
 	}
 }
 
-func Delete(ctx context.Context, cfg aws.Config, instance types.Instance) error {
-	svc := ec2.NewFromConfig(cfg)
+func Delete(ctx context.Context, provider *AwsProvider, machine Machine) error {
+	svc := ec2.NewFromConfig(provider.AwsConfig)
 
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []string{
-			*instance.InstanceId,
+			machine.InstanceID,
 		},
 	}
 
@@ -832,10 +867,10 @@ func Delete(ctx context.Context, cfg aws.Config, instance types.Instance) error 
 		return err
 	}
 
-	if instance.SpotInstanceRequestId != nil {
+	if machine.SpotInstanceRequestId != "" {
 		_, err = svc.CancelSpotInstanceRequests(ctx, &ec2.CancelSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: []string{
-				*instance.SpotInstanceRequestId,
+				machine.SpotInstanceRequestId,
 			},
 		})
 		if err != nil {
@@ -843,7 +878,19 @@ func Delete(ctx context.Context, cfg aws.Config, instance types.Instance) error 
 		}
 	}
 
-	return err
+	if provider.Config.UseRoute53Hostnames {
+		r53Zone, err := GetDevpodRoute53Zone(ctx, provider)
+		if err != nil {
+			return err
+		}
+		if r53Zone.id != "" {
+			if err := DeleteDevpodRoute53Record(ctx, provider, r53Zone, machine); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func GetInjectKeypairScript(dir string) (string, error) {
