@@ -718,9 +718,12 @@ func Create(
 		return Machine{}, err
 	}
 
-	r53Zone, err := GetDevpodRoute53Zone(ctx, providerAws)
-	if err != nil {
-		return Machine{}, err
+	var r53Zone route53Zone
+	if providerAws.Config.UseRoute53Hostnames {
+		r53Zone, err = GetDevpodRoute53Zone(ctx, providerAws)
+		if err != nil {
+			return Machine{}, err
+		}
 	}
 
 	instance := &ec2.RunInstancesInput{
@@ -875,13 +878,15 @@ func Delete(ctx context.Context, provider *AwsProvider, machine Machine) error {
 		}
 	}
 
-	route53Zone, err := GetDevpodRoute53Zone(ctx, provider)
-	if err != nil {
-		return err
-	}
-	if route53Zone.id != "" {
-		if err := DeleteDevpodRoute53Record(ctx, provider, route53Zone, machine); err != nil {
+	if provider.Config.UseRoute53Hostnames {
+		r53Zone, err := GetDevpodRoute53Zone(ctx, provider)
+		if err != nil {
 			return err
+		}
+		if r53Zone.id != "" {
+			if err := DeleteDevpodRoute53Record(ctx, provider, r53Zone, machine); err != nil {
+				return err
+			}
 		}
 	}
 
