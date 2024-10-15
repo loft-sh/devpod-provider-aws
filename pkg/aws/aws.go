@@ -99,7 +99,7 @@ func NewAWSConfig(ctx context.Context, logs log.Logger, options *options.Options
 		// parse the JSON output to an aws.Credentials object
 		var creds aws.Credentials
 		if err := json.Unmarshal(output.Bytes(), &creds); err != nil {
-			return aws.Config{}, fmt.Errorf("parse JSON output %q: %w", output.Bytes(), err)
+			return aws.Config{}, fmt.Errorf("parse AWS credential JSON output %q: %w", output.Bytes(), err)
 		}
 
 		if creds.AccessKeyID == "" || creds.SecretAccessKey == "" {
