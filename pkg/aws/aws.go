@@ -1,10 +1,15 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/sirupsen/logrus"
 	"net/http"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -46,7 +51,7 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 		return nil, err
 	}
 
-	cfg, err := awsConfig.LoadDefaultConfig(ctx)
+	cfg, err := NewAWSConfig(ctx, logs, config)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +83,38 @@ func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
 	}
 
 	return provider, nil
+}
+
+func NewAWSConfig(ctx context.Context, logs log.Logger, options *options.Options) (aws.Config, error) {
+	var opts []func(*awsConfig.LoadOptions) error
+	if options.CustomCredentialCommand != "" {
+		var output bytes.Buffer
+		cmd := exec.Command("sh", "-c", options.CustomCredentialCommand)
+		cmd.Stdout = &output
+		cmd.Stderr = logs.Writer(logrus.ErrorLevel, true)
+		if err := cmd.Run(); err != nil {
+			return aws.Config{}, fmt.Errorf("run command %q: %w", options.CustomCredentialCommand, err)
+		}
+
+		// parse the JSON output to an aws.Credentials object
+		var creds aws.Credentials
+		if err := json.Unmarshal(output.Bytes(), &creds); err != nil {
+			return aws.Config{}, fmt.Errorf("parse AWS credential JSON output %q: %w", output.Bytes(), err)
+		}
+
+		if creds.AccessKeyID == "" || creds.SecretAccessKey == "" {
+			return aws.Config{}, fmt.Errorf("missing access key id or secret access key in JSON output %q", output.Bytes())
+		}
+
+		// we managed to parse credentials from the external source. Let's use them through a credentials provider
+		opts = append(opts, awsConfig.WithCredentialsProvider(credentials.StaticCredentialsProvider{Value: creds}))
+	}
+
+	cfg, err := awsConfig.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return aws.Config{}, err
+	}
+	return cfg, nil
 }
 
 type AwsProvider struct {

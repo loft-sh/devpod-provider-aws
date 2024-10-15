@@ -24,6 +24,7 @@ var (
 	AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER = "AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER"
 	AWS_USE_ROUTE53                     = "AWS_USE_ROUTE53"
 	AWS_ROUTE53_ZONE_NAME               = "AWS_ROUTE53_ZONE_NAME"
+	CUSTOM_AWS_CREDENTIAL_COMMAND       = "CUSTOM_AWS_CREDENTIAL_COMMAND"
 )
 
 type Options struct {
@@ -46,12 +47,14 @@ type Options struct {
 	KmsKeyARNForSessionManager string
 	UseRoute53Hostnames        bool
 	Route53ZoneName            string
+	CustomCredentialCommand    string
 }
 
 func FromEnv(init bool) (*Options, error) {
 	retOptions := &Options{}
 
 	var err error
+	retOptions.CustomCredentialCommand = os.Getenv(CUSTOM_AWS_CREDENTIAL_COMMAND)
 
 	retOptions.MachineType, err = fromEnvOrError(AWS_INSTANCE_TYPE)
 	if err != nil {
@@ -84,7 +87,7 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.UseRoute53Hostnames = os.Getenv(AWS_USE_ROUTE53) == "true"
 	retOptions.Route53ZoneName = os.Getenv(AWS_ROUTE53_ZONE_NAME)
 
-	// Return eraly if we're just doing init
+	// Return early if we're just doing init
 	if init {
 		return retOptions, nil
 	}
