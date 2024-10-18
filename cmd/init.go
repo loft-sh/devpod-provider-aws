@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 
-	AwsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/loft-sh/devpod-provider-aws/pkg/aws"
 	"github.com/loft-sh/devpod-provider-aws/pkg/options"
 	"github.com/loft-sh/devpod/pkg/log"
@@ -43,7 +42,7 @@ func (cmd *InitCmd) Run(
 		return err
 	}
 
-	cfg, err := AwsConfig.LoadDefaultConfig(ctx)
+	cfg, err := aws.NewAWSConfig(ctx, logs, config)
 	if err != nil {
 		return err
 	}
