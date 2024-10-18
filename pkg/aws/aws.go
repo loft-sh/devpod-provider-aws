@@ -87,8 +87,8 @@ type AwsProvider struct {
 	WorkingDirectory string
 }
 
-func GetSubnetID(ctx context.Context, provider *AwsProvider) (string, error) {
-	svc := ec2.NewFromConfig(provider.AwsConfig)
+func GetSubnetID(ctx context.Context, config aws.Config, vpcID string) (string, error) {
+	svc := ec2.NewFromConfig(config)
 
 	// first search for a default devpod specific subnet, if it fails
 	// we search the subnet with most free IPs that can do also public-ipv4
@@ -117,7 +117,7 @@ func GetSubnetID(ctx context.Context, provider *AwsProvider) (string, error) {
 			{
 				Name: aws.String("vpc-id"),
 				Values: []string{
-					provider.Config.VpcID,
+					vpcID,
 				},
 			},
 			{
@@ -164,14 +164,26 @@ func GetDevpodVPC(ctx context.Context, provider *AwsProvider) (string, error) {
 		return "", errors.New("There are no VPCs to associate with")
 	}
 
-	// We need to find a default vpc
+	// We need to find a tagged VPC or if none found, the default vpc
+	var defaultVpcID string
+	var devpodVpcIDs []string
 	for _, vpc := range result.Vpcs {
 		if *vpc.IsDefault {
-			return *vpc.VpcId, nil
+			defaultVpcID = *vpc.VpcId
+		}
+		for _, tag := range vpc.Tags {
+			if *tag.Key == "devpod" && *tag.Value == "devpod" {
+				devpodVpcIDs = append(devpodVpcIDs, *vpc.VpcId)
+			}
 		}
 	}
-
-	return "", nil
+	if len(devpodVpcIDs) > 1 {
+		return "", fmt.Errorf("found %d but expected a single VPC tagged with devpod: %v", len(devpodVpcIDs), devpodVpcIDs)
+	}
+	if len(devpodVpcIDs) == 1 {
+		return devpodVpcIDs[0], nil
+	}
+	return defaultVpcID, nil
 }
 
 func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (string, error) {
@@ -765,8 +777,13 @@ func Create(
 		}
 	}
 
-	if providerAws.Config.VpcID != "" && providerAws.Config.SubnetID == "" {
-		subnetID, err := GetSubnetID(ctx, providerAws)
+	vpcID, err := GetDevpodVPC(ctx, providerAws)
+	if err != nil {
+		return Machine{}, err
+	}
+
+	if providerAws.Config.SubnetID == "" {
+		subnetID, err := GetSubnetID(ctx, providerAws.AwsConfig, vpcID)
 		if err != nil {
 			return Machine{}, err
 		}
