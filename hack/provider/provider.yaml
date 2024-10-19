@@ -25,6 +25,7 @@ optionGroups:
       - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
       - AWS_USE_ROUTE53
       - AWS_ROUTE53_ZONE_NAME
+      - AWS_AVAILABILITY_ZONE
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -83,10 +84,13 @@ options:
     description: The vpc id to use.
     default: ""
   AWS_SUBNET_ID:
-    description: The subnet id to use.
+    description: The subnet id to use. Can also be multiple once separated by a comma. By default the one with the most available IPs is chosen. Can be overridden by AWS_AVAILABILITY_ZONE.
     default: ""
   AWS_SECURITY_GROUP_ID:
     description: The security group id to use. Multiple can be specified by separating with a comma.
+    default: ""
+  AWS_AVAILABILITY_ZONE:
+    description: The name of the AWS availability zone can be specified to choose a subnet out of the desired zone.
     default: ""
   AWS_AMI:
     description: The disk image to use.

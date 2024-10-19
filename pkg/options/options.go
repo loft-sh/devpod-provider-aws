@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 	AWS_SECURITY_GROUP_ID               = "AWS_SECURITY_GROUP_ID"
 	AWS_SUBNET_ID                       = "AWS_SUBNET_ID"
 	AWS_VPC_ID                          = "AWS_VPC_ID"
+	AWS_AVAILABILITY_ZONE               = "AWS_AVAILABILITY_ZONE"
 	AWS_INSTANCE_TAGS                   = "AWS_INSTANCE_TAGS"
 	AWS_INSTANCE_PROFILE_ARN            = "AWS_INSTANCE_PROFILE_ARN"
 	AWS_USE_INSTANCE_CONNECT_ENDPOINT   = "AWS_USE_INSTANCE_CONNECT_ENDPOINT"
@@ -35,7 +37,8 @@ type Options struct {
 	MachineID                  string
 	MachineType                string
 	VpcID                      string
-	SubnetID                   string
+	SubnetIDs                  []string
+	AvailabilityZone           string
 	SecurityGroupID            string
 	InstanceProfileArn         string
 	InstanceTags               string
@@ -74,8 +77,8 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.DiskImage = os.Getenv(AWS_AMI)
 	retOptions.RootDevice = os.Getenv(AWS_ROOT_DEVICE)
 	retOptions.SecurityGroupID = os.Getenv(AWS_SECURITY_GROUP_ID)
-	retOptions.SubnetID = os.Getenv(AWS_SUBNET_ID)
 	retOptions.VpcID = os.Getenv(AWS_VPC_ID)
+	retOptions.AvailabilityZone = os.Getenv(AWS_AVAILABILITY_ZONE)
 	retOptions.InstanceTags = os.Getenv(AWS_INSTANCE_TAGS)
 	retOptions.InstanceProfileArn = os.Getenv(AWS_INSTANCE_PROFILE_ARN)
 	retOptions.Zone = os.Getenv(AWS_REGION)
@@ -86,6 +89,13 @@ func FromEnv(init bool) (*Options, error) {
 	retOptions.KmsKeyARNForSessionManager = os.Getenv(AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER)
 	retOptions.UseRoute53Hostnames = os.Getenv(AWS_USE_ROUTE53) == "true"
 	retOptions.Route53ZoneName = os.Getenv(AWS_ROUTE53_ZONE_NAME)
+
+	subnetIDs := os.Getenv(AWS_SUBNET_ID)
+	if subnetIDs != "" {
+		for _, subnetID := range strings.Split(os.Getenv(AWS_SUBNET_ID), ",") {
+			retOptions.SubnetIDs = append(retOptions.SubnetIDs, strings.TrimSpace(subnetID))
+		}
+	}
 
 	// Return early if we're just doing init
 	if init {
