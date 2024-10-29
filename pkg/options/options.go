@@ -92,7 +92,7 @@ func FromEnv(init bool) (*Options, error) {
 
 	subnetIDs := os.Getenv(AWS_SUBNET_ID)
 	if subnetIDs != "" {
-		for _, subnetID := range strings.Split(os.Getenv(AWS_SUBNET_ID), ",") {
+		for _, subnetID := range strings.Split(subnetIDs, ",") {
 			retOptions.SubnetIDs = append(retOptions.SubnetIDs, strings.TrimSpace(subnetID))
 		}
 	}
