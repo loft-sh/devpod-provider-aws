@@ -124,65 +124,98 @@ type AwsProvider struct {
 	WorkingDirectory string
 }
 
-func GetSubnetID(ctx context.Context, provider *AwsProvider) (string, error) {
+func GetSubnet(ctx context.Context, provider *AwsProvider) (string, error) {
+	// in case a single subnet ID is specified, use it without further checks
+	if len(provider.Config.SubnetIDs) == 1 {
+		return provider.Config.SubnetIDs[0], nil
+	}
+
 	svc := ec2.NewFromConfig(provider.AwsConfig)
+	// in case multiple subnet IDs are specified, we return the one with most free IPs
+	if len(provider.Config.SubnetIDs) > 1 {
+		subnets, err := svc.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
+			SubnetIds: provider.Config.SubnetIDs,
+		})
+		if err != nil {
+			return "", fmt.Errorf("list specified subnets %q: %w", provider.Config.SubnetIDs, err)
+		}
+		var maxIPCount int32
+		var subnet *types.Subnet
+		for _, s := range subnets.Subnets {
+			if provider.Config.AvailabilityZone != "" && *s.AvailabilityZone != provider.Config.AvailabilityZone {
+				continue
+			}
+			if *s.AvailableIpAddressCount > maxIPCount {
+				maxIPCount = *s.AvailableIpAddressCount
+				subnet = &s
+			}
+		}
 
-	// first search for a default devpod specific subnet, if it fails
-	// we search the subnet with most free IPs that can do also public-ipv4
-	input := &ec2.DescribeSubnetsInput{
-		Filters: []types.Filter{
+		if subnet == nil {
+			if provider.Config.AvailabilityZone == "" {
+				return "", fmt.Errorf("no subnets found with IDs %q", provider.Config.SubnetIDs)
+			} else {
+				return "", fmt.Errorf("no subnets found with IDs %q in availability zone %q", provider.Config.SubnetIDs, provider.Config.AvailabilityZone)
+			}
+		}
+
+		return *subnet.SubnetId, nil
+	}
+
+	// retrieve and index all visible subnets
+	input := &ec2.DescribeSubnetsInput{}
+	if provider.Config.AvailabilityZone != "" {
+		input.Filters = []types.Filter{
 			{
-				Name: aws.String("tag:devpod"),
+				Name: aws.String("availability-zone"),
 				Values: []string{
-					"devpod",
+					provider.Config.AvailabilityZone,
 				},
 			},
-		},
+		}
 	}
+	p := ec2.NewDescribeSubnetsPaginator(svc, input)
+	var taggedSubnetMaxIPCount, vpcedSubnetMaxIPCount int32
+	var taggedSubnet, vpcedSubnet *types.Subnet
+	for p.HasMorePages() {
+		page, err := p.NextPage(ctx)
+		if err != nil {
+			return "", fmt.Errorf("list all subnets: %w", err)
+		}
 
-	result, err := svc.DescribeSubnets(ctx, input)
-	if err != nil {
-		return "", err
-	}
-
-	if len(result.Subnets) > 0 {
-		return *result.Subnets[0].SubnetId, nil
-	}
-
-	input = &ec2.DescribeSubnetsInput{
-		Filters: []types.Filter{
-			{
-				Name: aws.String("vpc-id"),
-				Values: []string{
-					provider.Config.VpcID,
-				},
-			},
-			{
-				Name: aws.String("map-public-ip-on-launch"),
-				Values: []string{
-					"true",
-				},
-			},
-		},
-	}
-
-	result, err = svc.DescribeSubnets(ctx, input)
-	if err != nil {
-		return "", err
-	}
-
-	var maxIPCount int32
-
-	subnetID := ""
-
-	for _, v := range result.Subnets {
-		if *v.AvailableIpAddressCount > maxIPCount {
-			maxIPCount = *v.AvailableIpAddressCount
-			subnetID = *v.SubnetId
+		for _, s := range page.Subnets {
+			for _, tag := range s.Tags {
+				if *tag.Key == "devpod" && *tag.Value == "devpod" {
+					if *s.AvailableIpAddressCount > taggedSubnetMaxIPCount {
+						taggedSubnetMaxIPCount = *s.AvailableIpAddressCount
+						taggedSubnet = &s
+					}
+				}
+			}
+			if provider.Config.VpcID != "" && *s.VpcId == provider.Config.VpcID &&
+				*s.AvailableIpAddressCount > vpcedSubnetMaxIPCount &&
+				*s.MapPublicIpOnLaunch {
+				vpcedSubnetMaxIPCount = *s.AvailableIpAddressCount
+				vpcedSubnet = &s
+			}
 		}
 	}
 
-	return subnetID, nil
+	// if we found tagged subnets, we return the one with the most free IPs
+	if taggedSubnet != nil {
+		return *taggedSubnet.SubnetId, nil
+	}
+
+	// we found no tagged subnet so far. If a VPC is specified, we search for a subnet with the most free IPs that can do also public-ipv4
+	if vpcedSubnet != nil {
+		return *vpcedSubnet.SubnetId, nil
+	}
+
+	if provider.Config.VpcID == "" {
+		return "", errors.New("could not find a suitable subnet. Please either specify a subnet ID or VPC ID, or tag the desired subnets with devpod:devpod")
+	}
+
+	return "", nil
 }
 
 func GetDevpodVPC(ctx context.Context, provider *AwsProvider) (string, error) {
@@ -802,22 +835,11 @@ func Create(
 		}
 	}
 
-	if providerAws.Config.VpcID != "" && providerAws.Config.SubnetID == "" {
-		subnetID, err := GetSubnetID(ctx, providerAws)
-		if err != nil {
-			return Machine{}, err
-		}
-
-		if subnetID == "" {
-			return Machine{}, fmt.Errorf("could not find a matching SubnetID in VPC %s, please specify one", providerAws.Config.VpcID)
-		}
-
-		instance.SubnetId = &subnetID
+	subnetID, err := GetSubnet(ctx, providerAws)
+	if err != nil {
+		return Machine{}, fmt.Errorf("determine subnet ID: %w", err)
 	}
-
-	if providerAws.Config.SubnetID != "" {
-		instance.SubnetId = &providerAws.Config.SubnetID
-	}
+	instance.SubnetId = &subnetID
 
 	result, err := svc.RunInstances(ctx, instance)
 	if err != nil {
