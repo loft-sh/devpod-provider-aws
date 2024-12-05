@@ -20,7 +20,7 @@ func NewStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop an instance",
 		RunE: func(_ *cobra.Command, args []string) error {
-			awsProvider, err := aws.NewProvider(context.Background(), log.Default)
+			awsProvider, err := aws.NewProvider(context.Background(), false, log.Default)
 			if err != nil {
 				return err
 			}
