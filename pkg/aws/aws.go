@@ -6,14 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/sirupsen/logrus"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -45,8 +46,8 @@ func isEC2Instance() bool {
 	return true
 }
 
-func NewProvider(ctx context.Context, logs log.Logger) (*AwsProvider, error) {
-	config, err := options.FromEnv(false)
+func NewProvider(ctx context.Context, withFolder bool, logs log.Logger) (*AwsProvider, error) {
+	config, err := options.FromEnv(false, withFolder)
 	if err != nil {
 		return nil, err
 	}

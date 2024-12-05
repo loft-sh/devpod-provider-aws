@@ -37,7 +37,7 @@ func (cmd *InitCmd) Run(
 	machine *provider.Machine,
 	logs log.Logger,
 ) error {
-	config, err := options.FromEnv(true)
+	config, err := options.FromEnv(true, true)
 	if err != nil {
 		return err
 	}
