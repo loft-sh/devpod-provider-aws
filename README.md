@@ -7,8 +7,8 @@
 The provider is available for auto-installation using 
 
 ```sh
-devpod provider add aws
-devpod provider use aws
+devpod provider add aws -o AWS_REGION={your region}
+devpod provider use aws --reconfigure
 ```
 
 Follow the on-screen instructions to complete the setup.
@@ -20,6 +20,10 @@ Needed variables will be:
 The provider will inherit the login information from `aws cli` or you can
 specify in your environment, or in the provider options, the `AWS_ACCESS_KEY_ID=`
 and `AWS_SECRET_ACCESS_KEY=`
+
+For example the following should return successful
+
+`aws sts get-caller-identity`
 
 ### Creating your first devpod env with aws
 
