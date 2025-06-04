@@ -250,7 +250,7 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 
 	imageName := "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-%s-*"
 
-	architecture := "x86_64"
+	architecture := "amd64"
 	// Graviton instances terminate with g
 	if strings.HasSuffix(strings.Split(instanceType, ".")[0], "g") {
 		architecture = "arm64"
