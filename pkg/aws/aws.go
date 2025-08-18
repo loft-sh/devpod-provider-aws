@@ -298,6 +298,11 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 		return "", err
 	}
 
+	// Check if any images were found
+	if len(result.Images) == 0 {
+		return "", fmt.Errorf("no matching AMI found for architecture %s with Ubuntu 22.04 LTS - you may need to specify a custom AMI using the AWS_AMI option", architecture)
+	}
+
 	// Sort by date, so we take the latest AMI available for Ubuntu 22.04
 	sort.Slice(result.Images, func(i, j int) bool {
 		iTime, err := time.Parse("2006-01-02T15:04:05.000Z", *result.Images[i].CreationDate)
