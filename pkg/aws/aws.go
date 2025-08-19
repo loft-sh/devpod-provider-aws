@@ -248,7 +248,9 @@ func GetDevpodVPC(ctx context.Context, provider *AwsProvider) (string, error) {
 func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (string, error) {
 	svc := ec2.NewFromConfig(cfg)
 
-	architecture := "x86_64"
+	imageName := "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-%s-*"
+
+	architecture := "amd64"
 	// Graviton instances terminate with g
 	if strings.HasSuffix(strings.Split(instanceType, ".")[0], "g") {
 		architecture = "arm64"
@@ -261,33 +263,9 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 		},
 		Filters: []types.Filter{
 			{
-				Name: aws.String("virtualization-type"),
+				Name: aws.String("name"),
 				Values: []string{
-					"hvm",
-				},
-			},
-			{
-				Name: aws.String("architecture"),
-				Values: []string{
-					architecture,
-				},
-			},
-			{
-				Name: aws.String("root-device-type"),
-				Values: []string{
-					"ebs",
-				},
-			},
-			{
-				Name: aws.String("platform-details"),
-				Values: []string{
-					"Linux/UNIX",
-				},
-			},
-			{
-				Name: aws.String("description"),
-				Values: []string{
-					"Canonical, Ubuntu, 22.04 LTS*",
+					fmt.Sprintf(imageName, architecture),
 				},
 			},
 		},
