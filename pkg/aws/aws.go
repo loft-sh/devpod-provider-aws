@@ -256,14 +256,13 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 
 	input := &ec2.DescribeImagesInput{
 		Owners: []string{
-			"amazon",
-			"self",
+			"099720109477", // Canonical
 		},
 		Filters: []types.Filter{
 			{
-				Name: aws.String("virtualization-type"),
+				Name: aws.String("name"),
 				Values: []string{
-					"hvm",
+					"ubuntu/images/hvm-ssd/ubuntu-jammy-22.04*",
 				},
 			},
 			{
@@ -279,15 +278,9 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 				},
 			},
 			{
-				Name: aws.String("platform-details"),
+				Name: aws.String("state"),
 				Values: []string{
-					"Linux/UNIX",
-				},
-			},
-			{
-				Name: aws.String("description"),
-				Values: []string{
-					"Canonical, Ubuntu, 22.04 LTS*",
+					"available",
 				},
 			},
 		},
