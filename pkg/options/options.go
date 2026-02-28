@@ -22,6 +22,7 @@ var (
 	AWS_USE_INSTANCE_CONNECT_ENDPOINT   = "AWS_USE_INSTANCE_CONNECT_ENDPOINT"
 	AWS_INSTANCE_CONNECT_ENDPOINT_ID    = "AWS_INSTANCE_CONNECT_ENDPOINT_ID"
 	AWS_USE_SPOT_INSTANCE               = "AWS_USE_SPOT_INSTANCE"
+	AWS_ENABLE_NESTED_VIRTUALIZATION    = "AWS_ENABLE_NESTED_VIRTUALIZATION"
 	AWS_USE_SESSION_MANAGER             = "AWS_USE_SESSION_MANAGER"
 	AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER = "AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER"
 	AWS_USE_ROUTE53                     = "AWS_USE_ROUTE53"
@@ -45,7 +46,8 @@ type Options struct {
 	Zone                       string
 	UseInstanceConnectEndpoint bool
 	InstanceConnectEndpointID  string
-	UseSpotInstance            bool
+	UseSpotInstance                bool
+	EnableNestedVirtualization bool
 	UseSessionManager          bool
 	KmsKeyARNForSessionManager string
 	UseRoute53Hostnames        bool
@@ -85,6 +87,7 @@ func FromEnv(init, withFolder bool) (*Options, error) {
 	retOptions.UseInstanceConnectEndpoint = os.Getenv(AWS_USE_INSTANCE_CONNECT_ENDPOINT) == "true"
 	retOptions.InstanceConnectEndpointID = os.Getenv(AWS_INSTANCE_CONNECT_ENDPOINT_ID)
 	retOptions.UseSpotInstance = os.Getenv(AWS_USE_SPOT_INSTANCE) == "true"
+	retOptions.EnableNestedVirtualization = os.Getenv(AWS_ENABLE_NESTED_VIRTUALIZATION) == "true"
 	retOptions.UseSessionManager = os.Getenv(AWS_USE_SESSION_MANAGER) == "true"
 	retOptions.KmsKeyARNForSessionManager = os.Getenv(AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER)
 	retOptions.UseRoute53Hostnames = os.Getenv(AWS_USE_ROUTE53) == "true"
