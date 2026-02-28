@@ -6,16 +6,20 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// [VPC only] Describes the stale security group rules for security groups in a
-// specified VPC. Rules are stale when they reference a deleted security group in
-// the same VPC or in a peer VPC, or if they reference a security group in a peer
-// VPC for which the VPC peering connection has been deleted.
+// Describes the stale security group rules for security groups referenced across
+// a VPC peering connection, transit gateway connection, or with a security group
+// VPC association. Rules are stale when they reference a deleted security group.
+// Rules can also be stale if they reference a security group in a peer VPC for
+// which the VPC peering connection has been deleted, across a transit gateway
+// where the transit gateway has been deleted (or [the transit gateway security group referencing feature]has been disabled), or if a
+// security group VPC association has been disassociated.
+//
+// [the transit gateway security group referencing feature]: https://docs.aws.amazon.com/vpc/latest/tgw/tgw-vpc-attachments.html#vpc-attachment-security
 func (c *Client) DescribeStaleSecurityGroups(ctx context.Context, params *DescribeStaleSecurityGroupsInput, optFns ...func(*Options)) (*DescribeStaleSecurityGroupsOutput, error) {
 	if params == nil {
 		params = &DescribeStaleSecurityGroupsInput{}
@@ -46,8 +50,9 @@ type DescribeStaleSecurityGroupsInput struct {
 
 	// The maximum number of items to return for this request. To get the next page of
 	// items, make another request with the token returned in the output. For more
-	// information, see Pagination (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html#api-pagination)
-	// .
+	// information, see [Pagination].
+	//
+	// [Pagination]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html#api-pagination
 	MaxResults *int32
 
 	// The token returned from a previous paginated request. Pagination continues from
@@ -59,8 +64,8 @@ type DescribeStaleSecurityGroupsInput struct {
 
 type DescribeStaleSecurityGroupsOutput struct {
 
-	// The token to include in another request to get the next page of items. If there
-	// are no additional items to return, the string is empty.
+	// The token to include in another request to get the next page of items. This
+	// value is null when there are no more items to return.
 	NextToken *string
 
 	// Information about the stale security groups.
@@ -73,6 +78,9 @@ type DescribeStaleSecurityGroupsOutput struct {
 }
 
 func (c *Client) addOperationDescribeStaleSecurityGroupsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDescribeStaleSecurityGroups{}, middleware.After)
 	if err != nil {
 		return err
@@ -81,34 +89,41 @@ func (c *Client) addOperationDescribeStaleSecurityGroupsMiddlewares(stack *middl
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeStaleSecurityGroups"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -117,13 +132,25 @@ func (c *Client) addOperationDescribeStaleSecurityGroupsMiddlewares(stack *middl
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeStaleSecurityGroupsValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeStaleSecurityGroups(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -135,24 +162,29 @@ func (c *Client) addOperationDescribeStaleSecurityGroupsMiddlewares(stack *middl
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeStaleSecurityGroupsAPIClient is a client that implements the
-// DescribeStaleSecurityGroups operation.
-type DescribeStaleSecurityGroupsAPIClient interface {
-	DescribeStaleSecurityGroups(context.Context, *DescribeStaleSecurityGroupsInput, ...func(*Options)) (*DescribeStaleSecurityGroupsOutput, error)
-}
-
-var _ DescribeStaleSecurityGroupsAPIClient = (*Client)(nil)
 
 // DescribeStaleSecurityGroupsPaginatorOptions is the paginator options for
 // DescribeStaleSecurityGroups
 type DescribeStaleSecurityGroupsPaginatorOptions struct {
 	// The maximum number of items to return for this request. To get the next page of
 	// items, make another request with the token returned in the output. For more
-	// information, see Pagination (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html#api-pagination)
-	// .
+	// information, see [Pagination].
+	//
+	// [Pagination]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html#api-pagination
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -215,6 +247,9 @@ func (p *DescribeStaleSecurityGroupsPaginator) NextPage(ctx context.Context, opt
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeStaleSecurityGroups(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -234,11 +269,18 @@ func (p *DescribeStaleSecurityGroupsPaginator) NextPage(ctx context.Context, opt
 	return result, nil
 }
 
+// DescribeStaleSecurityGroupsAPIClient is a client that implements the
+// DescribeStaleSecurityGroups operation.
+type DescribeStaleSecurityGroupsAPIClient interface {
+	DescribeStaleSecurityGroups(context.Context, *DescribeStaleSecurityGroupsInput, ...func(*Options)) (*DescribeStaleSecurityGroupsOutput, error)
+}
+
+var _ DescribeStaleSecurityGroupsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opDescribeStaleSecurityGroups(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DescribeStaleSecurityGroups",
 	}
 }

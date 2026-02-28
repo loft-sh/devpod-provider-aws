@@ -4,8 +4,8 @@ package route53
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -13,10 +13,14 @@ import (
 
 // Deletes a key-signing key (KSK). Before you can delete a KSK, you must
 // deactivate it. The KSK must be deactivated before you can delete it regardless
-// of whether the hosted zone is enabled for DNSSEC signing. You can use
-// DeactivateKeySigningKey (https://docs.aws.amazon.com/Route53/latest/APIReference/API_DeactivateKeySigningKey.html)
-// to deactivate the key before you delete it. Use GetDNSSEC (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetDNSSEC.html)
-// to verify that the KSK is in an INACTIVE status.
+// of whether the hosted zone is enabled for DNSSEC signing.
+//
+// You can use [DeactivateKeySigningKey] to deactivate the key before you delete it.
+//
+// Use [GetDNSSEC] to verify that the KSK is in an INACTIVE status.
+//
+// [DeactivateKeySigningKey]: https://docs.aws.amazon.com/Route53/latest/APIReference/API_DeactivateKeySigningKey.html
+// [GetDNSSEC]: https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetDNSSEC.html
 func (c *Client) DeleteKeySigningKey(ctx context.Context, params *DeleteKeySigningKeyInput, optFns ...func(*Options)) (*DeleteKeySigningKeyOutput, error) {
 	if params == nil {
 		params = &DeleteKeySigningKeyInput{}
@@ -62,6 +66,9 @@ type DeleteKeySigningKeyOutput struct {
 }
 
 func (c *Client) addOperationDeleteKeySigningKeyMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpDeleteKeySigningKey{}, middleware.After)
 	if err != nil {
 		return err
@@ -70,34 +77,41 @@ func (c *Client) addOperationDeleteKeySigningKeyMiddlewares(stack *middleware.St
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DeleteKeySigningKey"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -106,13 +120,25 @@ func (c *Client) addOperationDeleteKeySigningKeyMiddlewares(stack *middleware.St
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteKeySigningKeyValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDeleteKeySigningKey(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -127,6 +153,18 @@ func (c *Client) addOperationDeleteKeySigningKeyMiddlewares(stack *middleware.St
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -134,7 +172,6 @@ func newServiceMetadataMiddleware_opDeleteKeySigningKey(region string) *awsmiddl
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "route53",
 		OperationName: "DeleteKeySigningKey",
 	}
 }

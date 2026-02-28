@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -47,8 +46,7 @@ type DescribeIpamResourceDiscoveriesInput struct {
 	// The maximum number of resource discoveries to return in one page of results.
 	MaxResults *int32
 
-	// Specify the pagination token from a previous request to retrieve the next page
-	// of results.
+	// The token for the next page of results.
 	NextToken *string
 
 	noSmithyDocumentSerde
@@ -59,8 +57,8 @@ type DescribeIpamResourceDiscoveriesOutput struct {
 	// The resource discoveries.
 	IpamResourceDiscoveries []types.IpamResourceDiscovery
 
-	// Specify the pagination token from a previous request to retrieve the next page
-	// of results.
+	// The token to use to retrieve the next page of results. This value is null when
+	// there are no more results to return.
 	NextToken *string
 
 	// Metadata pertaining to the operation's result.
@@ -70,6 +68,9 @@ type DescribeIpamResourceDiscoveriesOutput struct {
 }
 
 func (c *Client) addOperationDescribeIpamResourceDiscoveriesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDescribeIpamResourceDiscoveries{}, middleware.After)
 	if err != nil {
 		return err
@@ -78,34 +79,41 @@ func (c *Client) addOperationDescribeIpamResourceDiscoveriesMiddlewares(stack *m
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeIpamResourceDiscoveries"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -114,10 +122,22 @@ func (c *Client) addOperationDescribeIpamResourceDiscoveriesMiddlewares(stack *m
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeIpamResourceDiscoveries(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -129,16 +149,20 @@ func (c *Client) addOperationDescribeIpamResourceDiscoveriesMiddlewares(stack *m
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeIpamResourceDiscoveriesAPIClient is a client that implements the
-// DescribeIpamResourceDiscoveries operation.
-type DescribeIpamResourceDiscoveriesAPIClient interface {
-	DescribeIpamResourceDiscoveries(context.Context, *DescribeIpamResourceDiscoveriesInput, ...func(*Options)) (*DescribeIpamResourceDiscoveriesOutput, error)
-}
-
-var _ DescribeIpamResourceDiscoveriesAPIClient = (*Client)(nil)
 
 // DescribeIpamResourceDiscoveriesPaginatorOptions is the paginator options for
 // DescribeIpamResourceDiscoveries
@@ -206,6 +230,9 @@ func (p *DescribeIpamResourceDiscoveriesPaginator) NextPage(ctx context.Context,
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeIpamResourceDiscoveries(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -225,11 +252,18 @@ func (p *DescribeIpamResourceDiscoveriesPaginator) NextPage(ctx context.Context,
 	return result, nil
 }
 
+// DescribeIpamResourceDiscoveriesAPIClient is a client that implements the
+// DescribeIpamResourceDiscoveries operation.
+type DescribeIpamResourceDiscoveriesAPIClient interface {
+	DescribeIpamResourceDiscoveries(context.Context, *DescribeIpamResourceDiscoveriesInput, ...func(*Options)) (*DescribeIpamResourceDiscoveriesOutput, error)
+}
+
+var _ DescribeIpamResourceDiscoveriesAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opDescribeIpamResourceDiscoveries(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DescribeIpamResourceDiscoveries",
 	}
 }

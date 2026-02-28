@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -37,22 +36,33 @@ type DescribeNetworkInsightsPathsInput struct {
 	DryRun *bool
 
 	// The filters. The following are the possible values:
+	//
 	//   - destination - The ID of the resource.
+	//
 	//   - filter-at-source.source-address - The source IPv4 address at the source.
+	//
 	//   - filter-at-source.source-port-range - The source port range at the source.
+	//
 	//   - filter-at-source.destination-address - The destination IPv4 address at the
 	//   source.
+	//
 	//   - filter-at-source.destination-port-range - The destination port range at the
 	//   source.
+	//
 	//   - filter-at-destination.source-address - The source IPv4 address at the
 	//   destination.
+	//
 	//   - filter-at-destination.source-port-range - The source port range at the
 	//   destination.
+	//
 	//   - filter-at-destination.destination-address - The destination IPv4 address at
 	//   the destination.
+	//
 	//   - filter-at-destination.destination-port-range - The destination port range
 	//   at the destination.
+	//
 	//   - protocol - The protocol.
+	//
 	//   - source - The ID of the resource.
 	Filters []types.Filter
 
@@ -85,6 +95,9 @@ type DescribeNetworkInsightsPathsOutput struct {
 }
 
 func (c *Client) addOperationDescribeNetworkInsightsPathsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDescribeNetworkInsightsPaths{}, middleware.After)
 	if err != nil {
 		return err
@@ -93,34 +106,41 @@ func (c *Client) addOperationDescribeNetworkInsightsPathsMiddlewares(stack *midd
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeNetworkInsightsPaths"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -129,10 +149,22 @@ func (c *Client) addOperationDescribeNetworkInsightsPathsMiddlewares(stack *midd
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeNetworkInsightsPaths(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -144,16 +176,20 @@ func (c *Client) addOperationDescribeNetworkInsightsPathsMiddlewares(stack *midd
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeNetworkInsightsPathsAPIClient is a client that implements the
-// DescribeNetworkInsightsPaths operation.
-type DescribeNetworkInsightsPathsAPIClient interface {
-	DescribeNetworkInsightsPaths(context.Context, *DescribeNetworkInsightsPathsInput, ...func(*Options)) (*DescribeNetworkInsightsPathsOutput, error)
-}
-
-var _ DescribeNetworkInsightsPathsAPIClient = (*Client)(nil)
 
 // DescribeNetworkInsightsPathsPaginatorOptions is the paginator options for
 // DescribeNetworkInsightsPaths
@@ -222,6 +258,9 @@ func (p *DescribeNetworkInsightsPathsPaginator) NextPage(ctx context.Context, op
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeNetworkInsightsPaths(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -241,11 +280,18 @@ func (p *DescribeNetworkInsightsPathsPaginator) NextPage(ctx context.Context, op
 	return result, nil
 }
 
+// DescribeNetworkInsightsPathsAPIClient is a client that implements the
+// DescribeNetworkInsightsPaths operation.
+type DescribeNetworkInsightsPathsAPIClient interface {
+	DescribeNetworkInsightsPaths(context.Context, *DescribeNetworkInsightsPathsInput, ...func(*Options)) (*DescribeNetworkInsightsPathsOutput, error)
+}
+
+var _ DescribeNetworkInsightsPathsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opDescribeNetworkInsightsPaths(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DescribeNetworkInsightsPaths",
 	}
 }

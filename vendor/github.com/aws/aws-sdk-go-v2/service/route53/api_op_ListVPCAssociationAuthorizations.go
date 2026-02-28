@@ -4,8 +4,8 @@ package route53
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -13,9 +13,10 @@ import (
 
 // Gets a list of the VPCs that were created by other accounts and that can be
 // associated with a specified hosted zone because you've submitted one or more
-// CreateVPCAssociationAuthorization requests. The response includes a VPCs
-// element with a VPC child element for each VPC that can be associated with the
-// hosted zone.
+// CreateVPCAssociationAuthorization requests.
+//
+// The response includes a VPCs element with a VPC child element for each VPC that
+// can be associated with the hosted zone.
 func (c *Client) ListVPCAssociationAuthorizations(ctx context.Context, params *ListVPCAssociationAuthorizationsInput, optFns ...func(*Options)) (*ListVPCAssociationAuthorizationsOutput, error) {
 	if params == nil {
 		params = &ListVPCAssociationAuthorizationsInput{}
@@ -41,12 +42,12 @@ type ListVPCAssociationAuthorizationsInput struct {
 	// This member is required.
 	HostedZoneId *string
 
-	// Optional: An integer that specifies the maximum number of VPCs that you want
+	//  Optional: An integer that specifies the maximum number of VPCs that you want
 	// Amazon Route 53 to return. If you don't specify a value for MaxResults , Route
 	// 53 returns up to 50 VPCs per page.
 	MaxResults *int32
 
-	// Optional: If a response includes a NextToken element, there are more VPCs that
+	//  Optional: If a response includes a NextToken element, there are more VPCs that
 	// can be associated with the specified hosted zone. To get the next page of
 	// results, submit another request, and include the value of NextToken from the
 	// response in the nexttoken parameter in another ListVPCAssociationAuthorizations
@@ -83,6 +84,9 @@ type ListVPCAssociationAuthorizationsOutput struct {
 }
 
 func (c *Client) addOperationListVPCAssociationAuthorizationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpListVPCAssociationAuthorizations{}, middleware.After)
 	if err != nil {
 		return err
@@ -91,34 +95,41 @@ func (c *Client) addOperationListVPCAssociationAuthorizationsMiddlewares(stack *
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListVPCAssociationAuthorizations"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -127,13 +138,25 @@ func (c *Client) addOperationListVPCAssociationAuthorizationsMiddlewares(stack *
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListVPCAssociationAuthorizationsValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListVPCAssociationAuthorizations(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,6 +171,18 @@ func (c *Client) addOperationListVPCAssociationAuthorizationsMiddlewares(stack *
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -155,7 +190,6 @@ func newServiceMetadataMiddleware_opListVPCAssociationAuthorizations(region stri
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "route53",
 		OperationName: "ListVPCAssociationAuthorizations",
 	}
 }

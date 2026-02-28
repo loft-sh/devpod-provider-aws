@@ -4,25 +4,32 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates a VPC endpoint service to which service consumers (Amazon Web Services
-// accounts, users, and IAM roles) can connect. Before you create an endpoint
-// service, you must create one of the following for your service:
-//   - A Network Load Balancer (https://docs.aws.amazon.com/elasticloadbalancing/latest/network/)
-//     . Service consumers connect to your service using an interface endpoint.
-//   - A Gateway Load Balancer (https://docs.aws.amazon.com/elasticloadbalancing/latest/gateway/)
-//     . Service consumers connect to your service using a Gateway Load Balancer
+// accounts, users, and IAM roles) can connect.
+//
+// Before you create an endpoint service, you must create one of the following for
+// your service:
+//
+//   - A [Network Load Balancer]. Service consumers connect to your service using an interface endpoint.
+//
+//   - A [Gateway Load Balancer]. Service consumers connect to your service using a Gateway Load Balancer
 //     endpoint.
 //
 // If you set the private DNS name, you must prove that you own the private DNS
-// domain name. For more information, see the Amazon Web Services PrivateLink Guide (https://docs.aws.amazon.com/vpc/latest/privatelink/)
-// .
+// domain name.
+//
+// For more information, see the [Amazon Web Services PrivateLink Guide].
+//
+// [Gateway Load Balancer]: https://docs.aws.amazon.com/elasticloadbalancing/latest/gateway/
+// [Network Load Balancer]: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/
+// [Amazon Web Services PrivateLink Guide]: https://docs.aws.amazon.com/vpc/latest/privatelink/
 func (c *Client) CreateVpcEndpointServiceConfiguration(ctx context.Context, params *CreateVpcEndpointServiceConfigurationInput, optFns ...func(*Options)) (*CreateVpcEndpointServiceConfigurationOutput, error) {
 	if params == nil {
 		params = &CreateVpcEndpointServiceConfigurationInput{}
@@ -45,8 +52,9 @@ type CreateVpcEndpointServiceConfigurationInput struct {
 	AcceptanceRequired *bool
 
 	// Unique, case-sensitive identifier that you provide to ensure the idempotency of
-	// the request. For more information, see How to ensure idempotency (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Run_Instance_Idempotency.html)
-	// .
+	// the request. For more information, see [How to ensure idempotency].
+	//
+	// [How to ensure idempotency]: https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html
 	ClientToken *string
 
 	// Checks whether you have the required permissions for the action, without
@@ -67,6 +75,9 @@ type CreateVpcEndpointServiceConfigurationInput struct {
 
 	// The supported IP address types. The possible values are ipv4 and ipv6 .
 	SupportedIpAddressTypes []string
+
+	// The Regions from which service consumers can access the service.
+	SupportedRegions []string
 
 	// The tags to associate with the service.
 	TagSpecifications []types.TagSpecification
@@ -90,6 +101,9 @@ type CreateVpcEndpointServiceConfigurationOutput struct {
 }
 
 func (c *Client) addOperationCreateVpcEndpointServiceConfigurationMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpCreateVpcEndpointServiceConfiguration{}, middleware.After)
 	if err != nil {
 		return err
@@ -98,34 +112,41 @@ func (c *Client) addOperationCreateVpcEndpointServiceConfigurationMiddlewares(st
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "CreateVpcEndpointServiceConfiguration"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -134,10 +155,22 @@ func (c *Client) addOperationCreateVpcEndpointServiceConfigurationMiddlewares(st
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateVpcEndpointServiceConfiguration(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -149,6 +182,18 @@ func (c *Client) addOperationCreateVpcEndpointServiceConfigurationMiddlewares(st
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -156,7 +201,6 @@ func newServiceMetadataMiddleware_opCreateVpcEndpointServiceConfiguration(region
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "CreateVpcEndpointServiceConfiguration",
 	}
 }

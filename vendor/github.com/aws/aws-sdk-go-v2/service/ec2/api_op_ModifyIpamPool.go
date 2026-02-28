@@ -4,16 +4,18 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Modify the configurations of an IPAM pool. For more information, see Modify a
-// pool (https://docs.aws.amazon.com/vpc/latest/ipam/mod-pool-ipam.html) in the
-// Amazon VPC IPAM User Guide.
+// Modify the configurations of an IPAM pool.
+//
+// For more information, see [Modify a pool] in the Amazon VPC IPAM User Guide.
+//
+// [Modify a pool]: https://docs.aws.amazon.com/vpc/latest/ipam/mod-pool-ipam.html
 func (c *Client) ModifyIpamPool(ctx context.Context, params *ModifyIpamPoolInput, optFns ...func(*Options)) (*ModifyIpamPoolOutput, error) {
 	if params == nil {
 		params = &ModifyIpamPoolInput{}
@@ -37,8 +39,9 @@ type ModifyIpamPoolInput struct {
 	IpamPoolId *string
 
 	// Add tag allocation rules to a pool. For more information about allocation
-	// rules, see Create a top-level pool (https://docs.aws.amazon.com/vpc/latest/ipam/create-top-ipam.html)
-	// in the Amazon VPC IPAM User Guide.
+	// rules, see [Create a top-level pool]in the Amazon VPC IPAM User Guide.
+	//
+	// [Create a top-level pool]: https://docs.aws.amazon.com/vpc/latest/ipam/create-top-ipam.html
 	AddAllocationResourceTags []types.RequestIpamResourceTag
 
 	// The default netmask length for allocations added to this pool. If, for example,
@@ -66,7 +69,9 @@ type ModifyIpamPoolInput struct {
 	// might be imported and subsequently marked as noncompliant. If IPAM discovers
 	// multiple CIDRs that overlap, IPAM will import the largest CIDR only. If IPAM
 	// discovers multiple CIDRs with matching CIDRs, IPAM will randomly import one of
-	// them only. A locale must be set on the pool for this feature to work.
+	// them only.
+	//
+	// A locale must be set on the pool for this feature to work.
 	AutoImport *bool
 
 	// Clear the default netmask length allocation rule for this pool.
@@ -99,6 +104,9 @@ type ModifyIpamPoolOutput struct {
 }
 
 func (c *Client) addOperationModifyIpamPoolMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpModifyIpamPool{}, middleware.After)
 	if err != nil {
 		return err
@@ -107,34 +115,41 @@ func (c *Client) addOperationModifyIpamPoolMiddlewares(stack *middleware.Stack, 
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ModifyIpamPool"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -143,13 +158,25 @@ func (c *Client) addOperationModifyIpamPoolMiddlewares(stack *middleware.Stack, 
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpModifyIpamPoolValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opModifyIpamPool(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -161,6 +188,18 @@ func (c *Client) addOperationModifyIpamPoolMiddlewares(stack *middleware.Stack, 
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -168,7 +207,6 @@ func newServiceMetadataMiddleware_opModifyIpamPool(region string) *awsmiddleware
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "ModifyIpamPool",
 	}
 }

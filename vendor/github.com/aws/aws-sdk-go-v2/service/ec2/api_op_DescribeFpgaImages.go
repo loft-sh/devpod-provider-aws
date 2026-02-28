@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -39,21 +38,32 @@ type DescribeFpgaImagesInput struct {
 	DryRun *bool
 
 	// The filters.
+	//
 	//   - create-time - The creation time of the AFI.
+	//
 	//   - fpga-image-id - The FPGA image identifier (AFI ID).
+	//
 	//   - fpga-image-global-id - The global FPGA image identifier (AGFI ID).
+	//
 	//   - name - The name of the AFI.
+	//
 	//   - owner-id - The Amazon Web Services account ID of the AFI owner.
+	//
 	//   - product-code - The product code.
+	//
 	//   - shell-version - The version of the Amazon Web Services Shell that was used
 	//   to create the bitstream.
+	//
 	//   - state - The state of the AFI ( pending | failed | available | unavailable ).
+	//
 	//   - tag : - The key/value combination of a tag assigned to the resource. Use the
 	//   tag key in the filter name and the tag value as the filter value. For example,
 	//   to find all resources that have a tag with the key Owner and the value TeamA ,
 	//   specify tag:Owner for the filter name and TeamA for the filter value.
+	//
 	//   - tag-key - The key of a tag assigned to the resource. Use this filter to find
 	//   all resources assigned a tag with a specific key, regardless of the tag value.
+	//
 	//   - update-time - The time of the most recent update.
 	Filters []types.Filter
 
@@ -90,6 +100,9 @@ type DescribeFpgaImagesOutput struct {
 }
 
 func (c *Client) addOperationDescribeFpgaImagesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDescribeFpgaImages{}, middleware.After)
 	if err != nil {
 		return err
@@ -98,34 +111,41 @@ func (c *Client) addOperationDescribeFpgaImagesMiddlewares(stack *middleware.Sta
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeFpgaImages"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -134,10 +154,22 @@ func (c *Client) addOperationDescribeFpgaImagesMiddlewares(stack *middleware.Sta
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeFpgaImages(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -149,16 +181,20 @@ func (c *Client) addOperationDescribeFpgaImagesMiddlewares(stack *middleware.Sta
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeFpgaImagesAPIClient is a client that implements the DescribeFpgaImages
-// operation.
-type DescribeFpgaImagesAPIClient interface {
-	DescribeFpgaImages(context.Context, *DescribeFpgaImagesInput, ...func(*Options)) (*DescribeFpgaImagesOutput, error)
-}
-
-var _ DescribeFpgaImagesAPIClient = (*Client)(nil)
 
 // DescribeFpgaImagesPaginatorOptions is the paginator options for
 // DescribeFpgaImages
@@ -224,6 +260,9 @@ func (p *DescribeFpgaImagesPaginator) NextPage(ctx context.Context, optFns ...fu
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeFpgaImages(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -243,11 +282,18 @@ func (p *DescribeFpgaImagesPaginator) NextPage(ctx context.Context, optFns ...fu
 	return result, nil
 }
 
+// DescribeFpgaImagesAPIClient is a client that implements the DescribeFpgaImages
+// operation.
+type DescribeFpgaImagesAPIClient interface {
+	DescribeFpgaImages(context.Context, *DescribeFpgaImagesInput, ...func(*Options)) (*DescribeFpgaImagesOutput, error)
+}
+
+var _ DescribeFpgaImagesAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opDescribeFpgaImages(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DescribeFpgaImages",
 	}
 }

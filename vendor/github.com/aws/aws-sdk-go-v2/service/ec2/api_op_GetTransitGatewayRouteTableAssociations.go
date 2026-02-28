@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -43,9 +42,12 @@ type GetTransitGatewayRouteTableAssociationsInput struct {
 	DryRun *bool
 
 	// One or more filters. The possible values are:
+	//
 	//   - resource-id - The ID of the resource.
+	//
 	//   - resource-type - The resource type. Valid values are vpc | vpn |
 	//   direct-connect-gateway | peering | connect .
+	//
 	//   - transit-gateway-attachment-id - The ID of the attachment.
 	Filters []types.Filter
 
@@ -75,6 +77,9 @@ type GetTransitGatewayRouteTableAssociationsOutput struct {
 }
 
 func (c *Client) addOperationGetTransitGatewayRouteTableAssociationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpGetTransitGatewayRouteTableAssociations{}, middleware.After)
 	if err != nil {
 		return err
@@ -83,34 +88,41 @@ func (c *Client) addOperationGetTransitGatewayRouteTableAssociationsMiddlewares(
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "GetTransitGatewayRouteTableAssociations"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -119,13 +131,25 @@ func (c *Client) addOperationGetTransitGatewayRouteTableAssociationsMiddlewares(
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetTransitGatewayRouteTableAssociationsValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetTransitGatewayRouteTableAssociations(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -137,16 +161,20 @@ func (c *Client) addOperationGetTransitGatewayRouteTableAssociationsMiddlewares(
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// GetTransitGatewayRouteTableAssociationsAPIClient is a client that implements
-// the GetTransitGatewayRouteTableAssociations operation.
-type GetTransitGatewayRouteTableAssociationsAPIClient interface {
-	GetTransitGatewayRouteTableAssociations(context.Context, *GetTransitGatewayRouteTableAssociationsInput, ...func(*Options)) (*GetTransitGatewayRouteTableAssociationsOutput, error)
-}
-
-var _ GetTransitGatewayRouteTableAssociationsAPIClient = (*Client)(nil)
 
 // GetTransitGatewayRouteTableAssociationsPaginatorOptions is the paginator
 // options for GetTransitGatewayRouteTableAssociations
@@ -215,6 +243,9 @@ func (p *GetTransitGatewayRouteTableAssociationsPaginator) NextPage(ctx context.
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.GetTransitGatewayRouteTableAssociations(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -234,11 +265,18 @@ func (p *GetTransitGatewayRouteTableAssociationsPaginator) NextPage(ctx context.
 	return result, nil
 }
 
+// GetTransitGatewayRouteTableAssociationsAPIClient is a client that implements
+// the GetTransitGatewayRouteTableAssociations operation.
+type GetTransitGatewayRouteTableAssociationsAPIClient interface {
+	GetTransitGatewayRouteTableAssociations(context.Context, *GetTransitGatewayRouteTableAssociationsInput, ...func(*Options)) (*GetTransitGatewayRouteTableAssociationsOutput, error)
+}
+
+var _ GetTransitGatewayRouteTableAssociationsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opGetTransitGatewayRouteTableAssociations(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "GetTransitGatewayRouteTableAssociations",
 	}
 }

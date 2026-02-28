@@ -1090,6 +1090,26 @@ func (m *validateOpUpdateHostedZoneComment) HandleInitialize(ctx context.Context
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpUpdateHostedZoneFeatures struct {
+}
+
+func (*validateOpUpdateHostedZoneFeatures) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpUpdateHostedZoneFeatures) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*UpdateHostedZoneFeaturesInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpUpdateHostedZoneFeaturesInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpUpdateTrafficPolicyComment struct {
 }
 
@@ -1346,6 +1366,10 @@ func addOpUpdateHostedZoneCommentValidationMiddleware(stack *middleware.Stack) e
 	return stack.Initialize.Add(&validateOpUpdateHostedZoneComment{}, middleware.After)
 }
 
+func addOpUpdateHostedZoneFeaturesValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpUpdateHostedZoneFeatures{}, middleware.After)
+}
+
 func addOpUpdateTrafficPolicyCommentValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpUpdateTrafficPolicyComment{}, middleware.After)
 }
@@ -1504,6 +1528,41 @@ func validateCidrRoutingConfig(v *types.CidrRoutingConfig) error {
 	}
 }
 
+func validateCoordinates(v *types.Coordinates) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "Coordinates"}
+	if v.Latitude == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Latitude"))
+	}
+	if v.Longitude == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Longitude"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateGeoProximityLocation(v *types.GeoProximityLocation) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GeoProximityLocation"}
+	if v.Coordinates != nil {
+		if err := validateCoordinates(v.Coordinates); err != nil {
+			invalidParams.AddNested("Coordinates", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateHealthCheckConfig(v *types.HealthCheckConfig) error {
 	if v == nil {
 		return nil
@@ -1580,6 +1639,11 @@ func validateResourceRecordSet(v *types.ResourceRecordSet) error {
 	if v.CidrRoutingConfig != nil {
 		if err := validateCidrRoutingConfig(v.CidrRoutingConfig); err != nil {
 			invalidParams.AddNested("CidrRoutingConfig", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.GeoProximityLocation != nil {
+		if err := validateGeoProximityLocation(v.GeoProximityLocation); err != nil {
+			invalidParams.AddNested("GeoProximityLocation", err.(smithy.InvalidParamsError))
 		}
 	}
 	if invalidParams.Len() > 0 {
@@ -2510,6 +2574,21 @@ func validateOpUpdateHostedZoneCommentInput(v *UpdateHostedZoneCommentInput) err
 	invalidParams := smithy.InvalidParamsError{Context: "UpdateHostedZoneCommentInput"}
 	if v.Id == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Id"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpUpdateHostedZoneFeaturesInput(v *UpdateHostedZoneFeaturesInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "UpdateHostedZoneFeaturesInput"}
+	if v.HostedZoneId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("HostedZoneId"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

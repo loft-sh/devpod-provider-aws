@@ -4,20 +4,24 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Modifies the specified attribute of the specified AMI. You can specify only one
-// attribute at a time. To specify the attribute, you can use the Attribute
-// parameter, or one of the following parameters: Description , ImdsSupport , or
-// LaunchPermission . Images with an Amazon Web Services Marketplace product code
-// cannot be made public. To enable the SriovNetSupport enhanced networking
-// attribute of an image, enable SriovNetSupport on an instance and create an AMI
-// from the instance.
+// attribute at a time.
+//
+// To specify the attribute, you can use the Attribute parameter, or one of the
+// following parameters: Description , ImdsSupport , or LaunchPermission .
+//
+// Images with an Amazon Web Services Marketplace product code cannot be made
+// public.
+//
+// To enable the SriovNetSupport enhanced networking attribute of an image, enable
+// SriovNetSupport on an instance and create an AMI from the instance.
 func (c *Client) ModifyImageAttribute(ctx context.Context, params *ModifyImageAttributeInput, optFns ...func(*Options)) (*ModifyImageAttributeOutput, error) {
 	if params == nil {
 		params = &ModifyImageAttributeInput{}
@@ -41,8 +45,9 @@ type ModifyImageAttributeInput struct {
 	// This member is required.
 	ImageId *string
 
-	// The name of the attribute to modify. Valid values: description | imdsSupport |
-	// launchPermission
+	// The name of the attribute to modify.
+	//
+	// Valid values: description | imdsSupport | launchPermission
 	Attribute *string
 
 	// A new description for the AMI.
@@ -58,10 +63,13 @@ type ModifyImageAttributeInput struct {
 	// from this AMI will have HttpTokens automatically set to required so that, by
 	// default, the instance requires that IMDSv2 is used when requesting instance
 	// metadata. In addition, HttpPutResponseHopLimit is set to 2 . For more
-	// information, see Configure the AMI (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-new-instances.html#configure-IMDS-new-instances-ami-configuration)
-	// in the Amazon EC2 User Guide. Do not use this parameter unless your AMI software
-	// supports IMDSv2. After you set the value to v2.0 , you can't undo it. The only
-	// way to “reset” your AMI is to create a new AMI from the underlying snapshot.
+	// information, see [Configure the AMI]in the Amazon EC2 User Guide.
+	//
+	// Do not use this parameter unless your AMI software supports IMDSv2. After you
+	// set the value to v2.0 , you can't undo it. The only way to “reset” your AMI is
+	// to create a new AMI from the underlying snapshot.
+	//
+	// [Configure the AMI]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-new-instances.html#configure-IMDS-new-instances-ami-configuration
 	ImdsSupport *types.AttributeValue
 
 	// A new launch permission for the AMI.
@@ -105,6 +113,9 @@ type ModifyImageAttributeOutput struct {
 }
 
 func (c *Client) addOperationModifyImageAttributeMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpModifyImageAttribute{}, middleware.After)
 	if err != nil {
 		return err
@@ -113,34 +124,41 @@ func (c *Client) addOperationModifyImageAttributeMiddlewares(stack *middleware.S
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ModifyImageAttribute"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -149,13 +167,25 @@ func (c *Client) addOperationModifyImageAttributeMiddlewares(stack *middleware.S
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpModifyImageAttributeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opModifyImageAttribute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -167,6 +197,18 @@ func (c *Client) addOperationModifyImageAttributeMiddlewares(stack *middleware.S
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -174,7 +216,6 @@ func newServiceMetadataMiddleware_opModifyImageAttribute(region string) *awsmidd
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "ModifyImageAttribute",
 	}
 }
