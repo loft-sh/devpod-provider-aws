@@ -21,6 +21,7 @@ optionGroups:
       - AWS_USE_INSTANCE_CONNECT_ENDPOINT
       - AWS_INSTANCE_CONNECT_ENDPOINT_ID
       - AWS_USE_SPOT_INSTANCE
+      - AWS_ENABLE_NESTED_VIRTUALIZATION
       - AWS_USE_SESSION_MANAGER
       - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
       - AWS_USE_ROUTE53
@@ -252,6 +253,10 @@ options:
     default: ""
   AWS_USE_SPOT_INSTANCE:
     description: "Prefer the Spot instead of On-Demand instances."
+    type: boolean
+    default: false
+  AWS_ENABLE_NESTED_VIRTUALIZATION:
+    description: "Enable KVM nested virtualization at instance launch. Supported on 8th-gen Intel instance types (c8i, m8i, r8i and their flex variants)."
     type: boolean
     default: false
   AWS_USE_SESSION_MANAGER:

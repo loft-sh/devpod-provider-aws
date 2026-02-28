@@ -4,8 +4,8 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -37,9 +37,20 @@ type ModifyNetworkInterfaceAttributeInput struct {
 	// This member is required.
 	NetworkInterfaceId *string
 
+	// Indicates whether to assign a public IPv4 address to a network interface. This
+	// option can be enabled for any network interface but will only apply to the
+	// primary network interface (eth0).
+	AssociatePublicIpAddress *bool
+
+	// A list of subnet IDs to associate with the network interface.
+	AssociatedSubnetIds []string
+
 	// Information about the interface attachment. If modifying the delete on
 	// termination attribute, you must specify the ID of the interface attachment.
 	Attachment *types.NetworkInterfaceAttachmentChanges
+
+	// A connection tracking specification.
+	ConnectionTrackingSpecification *types.ConnectionTrackingSpecificationRequest
 
 	// A description for the network interface.
 	Description *types.AttributeValue
@@ -53,6 +64,21 @@ type ModifyNetworkInterfaceAttributeInput struct {
 	// Updates the ENA Express configuration for the network interface that’s attached
 	// to the instance.
 	EnaSrdSpecification *types.EnaSrdSpecification
+
+	// If you’re modifying a network interface in a dual-stack or IPv6-only subnet,
+	// you have the option to assign a primary IPv6 IP address. A primary IPv6 address
+	// is an IPv6 GUA address associated with an ENI that you have enabled to use a
+	// primary IPv6 address. Use this option if the instance that this ENI will be
+	// attached to relies on its IPv6 address not changing. Amazon Web Services will
+	// automatically assign an IPv6 address associated with the ENI attached to your
+	// instance to be the primary IPv6 address. Once you enable an IPv6 GUA address to
+	// be a primary IPv6, you cannot disable it. When you enable an IPv6 GUA address to
+	// be a primary IPv6, the first IPv6 GUA will be made the primary IPv6 address
+	// until the instance is terminated or the network interface is detached. If you
+	// have multiple IPv6 addresses associated with an ENI attached to your instance
+	// and you enable a primary IPv6 address, the first IPv6 GUA address associated
+	// with the ENI becomes the primary IPv6 address.
+	EnablePrimaryIpv6 *bool
 
 	// Changes the security groups for the network interface. The new set of groups
 	// you specify replaces the current set. You must specify at least one group, even
@@ -79,6 +105,9 @@ type ModifyNetworkInterfaceAttributeOutput struct {
 }
 
 func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpModifyNetworkInterfaceAttribute{}, middleware.After)
 	if err != nil {
 		return err
@@ -87,34 +116,41 @@ func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *m
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ModifyNetworkInterfaceAttribute"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -123,13 +159,25 @@ func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *m
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpModifyNetworkInterfaceAttributeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opModifyNetworkInterfaceAttribute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -141,6 +189,18 @@ func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *m
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -148,7 +208,6 @@ func newServiceMetadataMiddleware_opModifyNetworkInterfaceAttribute(region strin
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "ModifyNetworkInterfaceAttribute",
 	}
 }

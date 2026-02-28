@@ -4,29 +4,32 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Creates a transit gateway. You can use a transit gateway to interconnect your
-// virtual private clouds (VPC) and on-premises networks. After the transit gateway
-// enters the available state, you can attach your VPCs and VPN connections to the
-// transit gateway. To attach your VPCs, use CreateTransitGatewayVpcAttachment . To
-// attach a VPN connection, use CreateCustomerGateway to create a customer gateway
-// and specify the ID of the customer gateway and the ID of the transit gateway in
-// a call to CreateVpnConnection . When you create a transit gateway, we create a
-// default transit gateway route table and use it as the default association route
-// table and the default propagation route table. You can use
-// CreateTransitGatewayRouteTable to create additional transit gateway route
+// Creates a transit gateway.
+//
+// You can use a transit gateway to interconnect your virtual private clouds (VPC)
+// and on-premises networks. After the transit gateway enters the available state,
+// you can attach your VPCs and VPN connections to the transit gateway.
+//
+// To attach your VPCs, use CreateTransitGatewayVpcAttachment.
+//
+// To attach a VPN connection, use CreateCustomerGateway to create a customer gateway and specify the
+// ID of the customer gateway and the ID of the transit gateway in a call to CreateVpnConnection.
+//
+// When you create a transit gateway, we create a default transit gateway route
+// table and use it as the default association route table and the default
+// propagation route table. You can use CreateTransitGatewayRouteTableto create additional transit gateway route
 // tables. If you disable automatic route propagation, we do not create a default
-// transit gateway route table. You can use
-// EnableTransitGatewayRouteTablePropagation to propagate routes from a resource
+// transit gateway route table. You can use EnableTransitGatewayRouteTablePropagationto propagate routes from a resource
 // attachment to a transit gateway route table. If you disable automatic
-// associations, you can use AssociateTransitGatewayRouteTable to associate a
-// resource attachment with a transit gateway route table.
+// associations, you can use AssociateTransitGatewayRouteTableto associate a resource attachment with a transit
+// gateway route table.
 func (c *Client) CreateTransitGateway(ctx context.Context, params *CreateTransitGatewayInput, optFns ...func(*Options)) (*CreateTransitGatewayOutput, error) {
 	if params == nil {
 		params = &CreateTransitGatewayInput{}
@@ -74,6 +77,9 @@ type CreateTransitGatewayOutput struct {
 }
 
 func (c *Client) addOperationCreateTransitGatewayMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpCreateTransitGateway{}, middleware.After)
 	if err != nil {
 		return err
@@ -82,34 +88,41 @@ func (c *Client) addOperationCreateTransitGatewayMiddlewares(stack *middleware.S
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "CreateTransitGateway"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -118,10 +131,22 @@ func (c *Client) addOperationCreateTransitGatewayMiddlewares(stack *middleware.S
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateTransitGateway(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -133,6 +158,18 @@ func (c *Client) addOperationCreateTransitGatewayMiddlewares(stack *middleware.S
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -140,7 +177,6 @@ func newServiceMetadataMiddleware_opCreateTransitGateway(region string) *awsmidd
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "CreateTransitGateway",
 	}
 }

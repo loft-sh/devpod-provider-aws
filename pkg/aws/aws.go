@@ -834,6 +834,12 @@ func Create(
 		}
 	}
 
+	if providerAws.Config.EnableNestedVirtualization {
+		instance.CpuOptions = &types.CpuOptionsRequest{
+			NestedVirtualization: types.NestedVirtualizationSpecificationEnabled,
+		}
+	}
+
 	profile, err := GetDevpodInstanceProfile(ctx, providerAws)
 	if err == nil {
 		instance.IamInstanceProfile = &types.IamInstanceProfileSpecification{

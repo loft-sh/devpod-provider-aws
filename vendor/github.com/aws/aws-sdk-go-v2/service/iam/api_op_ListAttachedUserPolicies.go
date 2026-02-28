@@ -6,21 +6,25 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists all managed policies that are attached to the specified IAM user. An IAM
-// user can also have inline policies embedded with it. To list the inline policies
-// for a user, use ListUserPolicies . For information about policies, see Managed
-// policies and inline policies (https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html)
-// in the IAM User Guide. You can paginate the results using the MaxItems and
-// Marker parameters. You can use the PathPrefix parameter to limit the list of
-// policies to only those matching the specified path prefix. If there are no
-// policies attached to the specified group (or none that match the specified path
-// prefix), the operation returns an empty list.
+// Lists all managed policies that are attached to the specified IAM user.
+//
+// An IAM user can also have inline policies embedded with it. To list the inline
+// policies for a user, use [ListUserPolicies]. For information about policies, see [Managed policies and inline policies] in the IAM User
+// Guide.
+//
+// You can paginate the results using the MaxItems and Marker parameters. You can
+// use the PathPrefix parameter to limit the list of policies to only those
+// matching the specified path prefix. If there are no policies attached to the
+// specified group (or none that match the specified path prefix), the operation
+// returns an empty list.
+//
+// [ListUserPolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListUserPolicies.html
+// [Managed policies and inline policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html
 func (c *Client) ListAttachedUserPolicies(ctx context.Context, params *ListAttachedUserPoliciesInput, optFns ...func(*Options)) (*ListAttachedUserPoliciesOutput, error) {
 	if params == nil {
 		params = &ListAttachedUserPoliciesInput{}
@@ -39,10 +43,12 @@ func (c *Client) ListAttachedUserPolicies(ctx context.Context, params *ListAttac
 type ListAttachedUserPoliciesInput struct {
 
 	// The name (friendly name, not ARN) of the user to list attached policies for.
-	// This parameter allows (through its regex pattern (http://wikipedia.org/wiki/regex)
-	// ) a string of characters consisting of upper and lowercase alphanumeric
-	// characters with no spaces. You can also include any of the following characters:
-	// _+=,.@-
+	//
+	// This parameter allows (through its [regex pattern]) a string of characters consisting of upper
+	// and lowercase alphanumeric characters with no spaces. You can also include any
+	// of the following characters: _+=,.@-
+	//
+	// [regex pattern]: http://wikipedia.org/wiki/regex
 	//
 	// This member is required.
 	UserName *string
@@ -55,26 +61,33 @@ type ListAttachedUserPoliciesInput struct {
 
 	// Use this only when paginating results to indicate the maximum number of items
 	// you want in the response. If additional items exist beyond the maximum you
-	// specify, the IsTruncated response element is true . If you do not include this
-	// parameter, the number of items defaults to 100. Note that IAM might return fewer
-	// results, even when there are more results available. In that case, the
-	// IsTruncated response element returns true , and Marker contains a value to
-	// include in the subsequent call that tells the service where to continue from.
+	// specify, the IsTruncated response element is true .
+	//
+	// If you do not include this parameter, the number of items defaults to 100. Note
+	// that IAM might return fewer results, even when there are more results available.
+	// In that case, the IsTruncated response element returns true , and Marker
+	// contains a value to include in the subsequent call that tells the service where
+	// to continue from.
 	MaxItems *int32
 
 	// The path prefix for filtering the results. This parameter is optional. If it is
-	// not included, it defaults to a slash (/), listing all policies. This parameter
-	// allows (through its regex pattern (http://wikipedia.org/wiki/regex) ) a string
-	// of characters consisting of either a forward slash (/) by itself or a string
-	// that must begin and end with forward slashes. In addition, it can contain any
-	// ASCII character from the ! ( \u0021 ) through the DEL character ( \u007F ),
-	// including most punctuation characters, digits, and upper and lowercased letters.
+	// not included, it defaults to a slash (/), listing all policies.
+	//
+	// This parameter allows (through its [regex pattern]) a string of characters consisting of
+	// either a forward slash (/) by itself or a string that must begin and end with
+	// forward slashes. In addition, it can contain any ASCII character from the ! (
+	// \u0021 ) through the DEL character ( \u007F ), including most punctuation
+	// characters, digits, and upper and lowercased letters.
+	//
+	// [regex pattern]: http://wikipedia.org/wiki/regex
 	PathPrefix *string
 
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListAttachedUserPolicies request.
+// Contains the response to a successful [ListAttachedUserPolicies] request.
+//
+// [ListAttachedUserPolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListAttachedUserPolicies.html
 type ListAttachedUserPoliciesOutput struct {
 
 	// A list of the attached policies.
@@ -99,6 +112,9 @@ type ListAttachedUserPoliciesOutput struct {
 }
 
 func (c *Client) addOperationListAttachedUserPoliciesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpListAttachedUserPolicies{}, middleware.After)
 	if err != nil {
 		return err
@@ -107,34 +123,41 @@ func (c *Client) addOperationListAttachedUserPoliciesMiddlewares(stack *middlewa
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListAttachedUserPolicies"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -143,13 +166,25 @@ func (c *Client) addOperationListAttachedUserPoliciesMiddlewares(stack *middlewa
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListAttachedUserPoliciesValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListAttachedUserPolicies(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -161,27 +196,33 @@ func (c *Client) addOperationListAttachedUserPoliciesMiddlewares(stack *middlewa
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListAttachedUserPoliciesAPIClient is a client that implements the
-// ListAttachedUserPolicies operation.
-type ListAttachedUserPoliciesAPIClient interface {
-	ListAttachedUserPolicies(context.Context, *ListAttachedUserPoliciesInput, ...func(*Options)) (*ListAttachedUserPoliciesOutput, error)
-}
-
-var _ ListAttachedUserPoliciesAPIClient = (*Client)(nil)
 
 // ListAttachedUserPoliciesPaginatorOptions is the paginator options for
 // ListAttachedUserPolicies
 type ListAttachedUserPoliciesPaginatorOptions struct {
 	// Use this only when paginating results to indicate the maximum number of items
 	// you want in the response. If additional items exist beyond the maximum you
-	// specify, the IsTruncated response element is true . If you do not include this
-	// parameter, the number of items defaults to 100. Note that IAM might return fewer
-	// results, even when there are more results available. In that case, the
-	// IsTruncated response element returns true , and Marker contains a value to
-	// include in the subsequent call that tells the service where to continue from.
+	// specify, the IsTruncated response element is true .
+	//
+	// If you do not include this parameter, the number of items defaults to 100. Note
+	// that IAM might return fewer results, even when there are more results available.
+	// In that case, the IsTruncated response element returns true , and Marker
+	// contains a value to include in the subsequent call that tells the service where
+	// to continue from.
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -243,6 +284,9 @@ func (p *ListAttachedUserPoliciesPaginator) NextPage(ctx context.Context, optFns
 	}
 	params.MaxItems = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListAttachedUserPolicies(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -262,11 +306,18 @@ func (p *ListAttachedUserPoliciesPaginator) NextPage(ctx context.Context, optFns
 	return result, nil
 }
 
+// ListAttachedUserPoliciesAPIClient is a client that implements the
+// ListAttachedUserPolicies operation.
+type ListAttachedUserPoliciesAPIClient interface {
+	ListAttachedUserPolicies(context.Context, *ListAttachedUserPoliciesInput, ...func(*Options)) (*ListAttachedUserPoliciesOutput, error)
+}
+
+var _ ListAttachedUserPoliciesAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opListAttachedUserPolicies(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "iam",
 		OperationName: "ListAttachedUserPolicies",
 	}
 }

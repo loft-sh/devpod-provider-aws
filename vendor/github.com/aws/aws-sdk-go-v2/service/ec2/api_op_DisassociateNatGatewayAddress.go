@@ -4,24 +4,28 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Disassociates secondary Elastic IP addresses (EIPs) from a public NAT gateway.
-// You cannot disassociate your primary EIP. For more information, see Edit
-// secondary IP address associations (https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html#nat-gateway-edit-secondary)
-// in the Amazon Virtual Private Cloud User Guide. While disassociating is in
-// progress, you cannot associate/disassociate additional EIPs while the
-// connections are being drained. You are, however, allowed to delete the NAT
-// gateway. An EIP will only be released at the end of MaxDrainDurationSeconds. The
-// EIPs stay associated and support the existing connections but do not support any
-// new connections (new connections are distributed across the remaining associated
+// You cannot disassociate your primary EIP. For more information, see [Edit secondary IP address associations]in the
+// Amazon VPC User Guide.
+//
+// While disassociating is in progress, you cannot associate/disassociate
+// additional EIPs while the connections are being drained. You are, however,
+// allowed to delete the NAT gateway.
+//
+// An EIP is released only at the end of MaxDrainDurationSeconds. It stays
+// associated and supports the existing connections but does not support any new
+// connections (new connections are distributed across the remaining associated
 // EIPs). As the existing connections drain out, the EIPs (and the corresponding
-// private IPs mapped to them) get released.
+// private IP addresses mapped to them) are released.
+//
+// [Edit secondary IP address associations]: https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-working-with.html#nat-gateway-edit-secondary
 func (c *Client) DisassociateNatGatewayAddress(ctx context.Context, params *DisassociateNatGatewayAddressInput, optFns ...func(*Options)) (*DisassociateNatGatewayAddressOutput, error) {
 	if params == nil {
 		params = &DisassociateNatGatewayAddressInput{}
@@ -44,7 +48,7 @@ type DisassociateNatGatewayAddressInput struct {
 	// This member is required.
 	AssociationIds []string
 
-	// The NAT gateway ID.
+	// The ID of the NAT gateway.
 	//
 	// This member is required.
 	NatGatewayId *string
@@ -67,7 +71,7 @@ type DisassociateNatGatewayAddressOutput struct {
 	// Information about the NAT gateway IP addresses.
 	NatGatewayAddresses []types.NatGatewayAddress
 
-	// The NAT gateway ID.
+	// The ID of the NAT gateway.
 	NatGatewayId *string
 
 	// Metadata pertaining to the operation's result.
@@ -77,6 +81,9 @@ type DisassociateNatGatewayAddressOutput struct {
 }
 
 func (c *Client) addOperationDisassociateNatGatewayAddressMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDisassociateNatGatewayAddress{}, middleware.After)
 	if err != nil {
 		return err
@@ -85,34 +92,41 @@ func (c *Client) addOperationDisassociateNatGatewayAddressMiddlewares(stack *mid
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DisassociateNatGatewayAddress"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -121,13 +135,25 @@ func (c *Client) addOperationDisassociateNatGatewayAddressMiddlewares(stack *mid
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDisassociateNatGatewayAddressValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDisassociateNatGatewayAddress(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -139,6 +165,18 @@ func (c *Client) addOperationDisassociateNatGatewayAddressMiddlewares(stack *mid
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -146,7 +184,6 @@ func newServiceMetadataMiddleware_opDisassociateNatGatewayAddress(region string)
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DisassociateNatGatewayAddress",
 	}
 }

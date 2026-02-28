@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -54,8 +53,9 @@ type ListCidrBlocksOutput struct {
 	CidrBlocks []types.CidrBlockSummary
 
 	// An opaque pagination token to indicate where the service is to begin
-	// enumerating results. If no value is provided, the listing of results starts from
-	// the beginning.
+	// enumerating results.
+	//
+	// If no value is provided, the listing of results starts from the beginning.
 	NextToken *string
 
 	// Metadata pertaining to the operation's result.
@@ -65,6 +65,9 @@ type ListCidrBlocksOutput struct {
 }
 
 func (c *Client) addOperationListCidrBlocksMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpListCidrBlocks{}, middleware.After)
 	if err != nil {
 		return err
@@ -73,34 +76,41 @@ func (c *Client) addOperationListCidrBlocksMiddlewares(stack *middleware.Stack, 
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListCidrBlocks"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -109,13 +119,25 @@ func (c *Client) addOperationListCidrBlocksMiddlewares(stack *middleware.Stack, 
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListCidrBlocksValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListCidrBlocks(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -127,16 +149,20 @@ func (c *Client) addOperationListCidrBlocksMiddlewares(stack *middleware.Stack, 
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListCidrBlocksAPIClient is a client that implements the ListCidrBlocks
-// operation.
-type ListCidrBlocksAPIClient interface {
-	ListCidrBlocks(context.Context, *ListCidrBlocksInput, ...func(*Options)) (*ListCidrBlocksOutput, error)
-}
-
-var _ ListCidrBlocksAPIClient = (*Client)(nil)
 
 // ListCidrBlocksPaginatorOptions is the paginator options for ListCidrBlocks
 type ListCidrBlocksPaginatorOptions struct {
@@ -201,6 +227,9 @@ func (p *ListCidrBlocksPaginator) NextPage(ctx context.Context, optFns ...func(*
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListCidrBlocks(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -220,11 +249,18 @@ func (p *ListCidrBlocksPaginator) NextPage(ctx context.Context, optFns ...func(*
 	return result, nil
 }
 
+// ListCidrBlocksAPIClient is a client that implements the ListCidrBlocks
+// operation.
+type ListCidrBlocksAPIClient interface {
+	ListCidrBlocks(context.Context, *ListCidrBlocksInput, ...func(*Options)) (*ListCidrBlocksOutput, error)
+}
+
+var _ ListCidrBlocksAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opListCidrBlocks(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "route53",
 		OperationName: "ListCidrBlocks",
 	}
 }

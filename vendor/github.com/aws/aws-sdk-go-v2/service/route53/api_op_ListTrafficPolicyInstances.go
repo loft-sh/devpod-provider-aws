@@ -4,21 +4,23 @@ package route53
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Gets information about the traffic policy instances that you created by using
-// the current Amazon Web Services account. After you submit an
-// UpdateTrafficPolicyInstance request, there's a brief delay while Amazon Route 53
-// creates the resource record sets that are specified in the traffic policy
-// definition. For more information, see the State response element. Route 53
-// returns a maximum of 100 items in each response. If you have a lot of traffic
-// policy instances, you can use the MaxItems parameter to list them in groups of
-// up to 100.
+// the current Amazon Web Services account.
+//
+// After you submit an UpdateTrafficPolicyInstance request, there's a brief delay
+// while Amazon Route 53 creates the resource record sets that are specified in the
+// traffic policy definition. For more information, see the State response element.
+//
+// Route 53 returns a maximum of 100 items in each response. If you have a lot of
+// traffic policy instances, you can use the MaxItems parameter to list them in
+// groups of up to 100.
 func (c *Client) ListTrafficPolicyInstances(ctx context.Context, params *ListTrafficPolicyInstancesInput, optFns ...func(*Options)) (*ListTrafficPolicyInstancesOutput, error) {
 	if params == nil {
 		params = &ListTrafficPolicyInstancesInput{}
@@ -43,8 +45,10 @@ type ListTrafficPolicyInstancesInput struct {
 	// ListTrafficPolicyInstances request. For the value of HostedZoneId , specify the
 	// value of HostedZoneIdMarker from the previous response, which is the hosted
 	// zone ID of the first traffic policy instance in the next group of traffic policy
-	// instances. If the value of IsTruncated in the previous response was false ,
-	// there are no more traffic policy instances to get.
+	// instances.
+	//
+	// If the value of IsTruncated in the previous response was false , there are no
+	// more traffic policy instances to get.
 	HostedZoneIdMarker *string
 
 	// The maximum number of traffic policy instances that you want Amazon Route 53 to
@@ -61,8 +65,10 @@ type ListTrafficPolicyInstancesInput struct {
 	// ListTrafficPolicyInstances request. For the value of trafficpolicyinstancename ,
 	// specify the value of TrafficPolicyInstanceNameMarker from the previous
 	// response, which is the name of the first traffic policy instance in the next
-	// group of traffic policy instances. If the value of IsTruncated in the previous
-	// response was false , there are no more traffic policy instances to get.
+	// group of traffic policy instances.
+	//
+	// If the value of IsTruncated in the previous response was false , there are no
+	// more traffic policy instances to get.
 	TrafficPolicyInstanceNameMarker *string
 
 	// If the value of IsTruncated in the previous response was true , you have more
@@ -70,8 +76,10 @@ type ListTrafficPolicyInstancesInput struct {
 	// ListTrafficPolicyInstances request. For the value of trafficpolicyinstancetype ,
 	// specify the value of TrafficPolicyInstanceTypeMarker from the previous
 	// response, which is the type of the first traffic policy instance in the next
-	// group of traffic policy instances. If the value of IsTruncated in the previous
-	// response was false , there are no more traffic policy instances to get.
+	// group of traffic policy instances.
+	//
+	// If the value of IsTruncated in the previous response was false , there are no
+	// more traffic policy instances to get.
 	TrafficPolicyInstanceTypeMarker types.RRType
 
 	noSmithyDocumentSerde
@@ -124,6 +132,9 @@ type ListTrafficPolicyInstancesOutput struct {
 }
 
 func (c *Client) addOperationListTrafficPolicyInstancesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpListTrafficPolicyInstances{}, middleware.After)
 	if err != nil {
 		return err
@@ -132,34 +143,41 @@ func (c *Client) addOperationListTrafficPolicyInstancesMiddlewares(stack *middle
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListTrafficPolicyInstances"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -168,10 +186,22 @@ func (c *Client) addOperationListTrafficPolicyInstancesMiddlewares(stack *middle
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListTrafficPolicyInstances(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -186,6 +216,18 @@ func (c *Client) addOperationListTrafficPolicyInstancesMiddlewares(stack *middle
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -193,7 +235,6 @@ func newServiceMetadataMiddleware_opListTrafficPolicyInstances(region string) *a
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "route53",
 		OperationName: "ListTrafficPolicyInstances",
 	}
 }

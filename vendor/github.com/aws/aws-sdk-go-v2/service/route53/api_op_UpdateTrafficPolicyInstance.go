@@ -4,25 +4,35 @@ package route53
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+// After you submit a UpdateTrafficPolicyInstance request, there's a brief delay
+// while Route 53 creates the resource record sets that are specified in the
+// traffic policy definition. Use GetTrafficPolicyInstance with the id of updated
+// traffic policy instance confirm that the UpdateTrafficPolicyInstance request
+// completed successfully. For more information, see the State response element.
+//
 // Updates the resource record sets in a specified hosted zone that were created
-// based on the settings in a specified traffic policy version. When you update a
-// traffic policy instance, Amazon Route 53 continues to respond to DNS queries for
-// the root resource record set name (such as example.com) while it replaces one
-// group of resource record sets with another. Route 53 performs the following
-// operations:
+// based on the settings in a specified traffic policy version.
+//
+// When you update a traffic policy instance, Amazon Route 53 continues to respond
+// to DNS queries for the root resource record set name (such as example.com) while
+// it replaces one group of resource record sets with another. Route 53 performs
+// the following operations:
+//
 //   - Route 53 creates a new group of resource record sets based on the specified
 //     traffic policy. This is true regardless of how significant the differences are
 //     between the existing resource record sets and the new resource record sets.
+//
 //   - When all of the new resource record sets have been created, Route 53 starts
 //     to respond to DNS queries for the root resource record set name (such as
 //     example.com) by using the new resource record sets.
+//
 //   - Route 53 deletes the old group of resource record sets that are associated
 //     with the root resource record set name.
 func (c *Client) UpdateTrafficPolicyInstance(ctx context.Context, params *UpdateTrafficPolicyInstanceInput, optFns ...func(*Options)) (*UpdateTrafficPolicyInstanceOutput, error) {
@@ -86,6 +96,9 @@ type UpdateTrafficPolicyInstanceOutput struct {
 }
 
 func (c *Client) addOperationUpdateTrafficPolicyInstanceMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpUpdateTrafficPolicyInstance{}, middleware.After)
 	if err != nil {
 		return err
@@ -94,34 +107,41 @@ func (c *Client) addOperationUpdateTrafficPolicyInstanceMiddlewares(stack *middl
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "UpdateTrafficPolicyInstance"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -130,13 +150,25 @@ func (c *Client) addOperationUpdateTrafficPolicyInstanceMiddlewares(stack *middl
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpUpdateTrafficPolicyInstanceValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opUpdateTrafficPolicyInstance(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,6 +180,18 @@ func (c *Client) addOperationUpdateTrafficPolicyInstanceMiddlewares(stack *middl
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -155,7 +199,6 @@ func newServiceMetadataMiddleware_opUpdateTrafficPolicyInstance(region string) *
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "route53",
 		OperationName: "UpdateTrafficPolicyInstance",
 	}
 }

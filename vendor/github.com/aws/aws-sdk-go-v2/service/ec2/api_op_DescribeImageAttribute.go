@@ -4,8 +4,8 @@ package ec2
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -13,6 +13,10 @@ import (
 
 // Describes the specified attribute of the specified AMI. You can specify only
 // one attribute at a time.
+//
+// The order of the elements in the response, including those within nested
+// structures, might vary. Applications should not assume the elements appear in a
+// particular order.
 func (c *Client) DescribeImageAttribute(ctx context.Context, params *DescribeImageAttributeInput, optFns ...func(*Options)) (*DescribeImageAttributeOutput, error) {
 	if params == nil {
 		params = &DescribeImageAttributeInput{}
@@ -31,9 +35,11 @@ func (c *Client) DescribeImageAttribute(ctx context.Context, params *DescribeIma
 // Contains the parameters for DescribeImageAttribute.
 type DescribeImageAttributeInput struct {
 
-	// The AMI attribute. Note: The blockDeviceMapping attribute is deprecated. Using
-	// this attribute returns the Client.AuthFailure error. To get information about
-	// the block device mappings for an AMI, use the DescribeImages action.
+	// The AMI attribute.
+	//
+	// Note: The blockDeviceMapping attribute is deprecated. Using this attribute
+	// returns the Client.AuthFailure error. To get information about the block device
+	// mappings for an AMI, describe the image instead.
 	//
 	// This member is required.
 	Attribute types.ImageAttributeName
@@ -61,6 +67,9 @@ type DescribeImageAttributeOutput struct {
 	// The boot mode.
 	BootMode *types.AttributeValue
 
+	// Indicates whether deregistration protection is enabled for the AMI.
+	DeregistrationProtection *types.AttributeValue
+
 	// A description for the AMI.
 	Description *types.AttributeValue
 
@@ -71,17 +80,21 @@ type DescribeImageAttributeOutput struct {
 	// from this AMI will have HttpTokens automatically set to required so that, by
 	// default, the instance requires that IMDSv2 is used when requesting instance
 	// metadata. In addition, HttpPutResponseHopLimit is set to 2 . For more
-	// information, see Configure the AMI (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-new-instances.html#configure-IMDS-new-instances-ami-configuration)
-	// in the Amazon EC2 User Guide.
+	// information, see [Configure the AMI]in the Amazon EC2 User Guide.
+	//
+	// [Configure the AMI]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-new-instances.html#configure-IMDS-new-instances-ami-configuration
 	ImdsSupport *types.AttributeValue
 
 	// The kernel ID.
 	KernelId *types.AttributeValue
 
-	// The date and time, in ISO 8601 date-time format (http://www.iso.org/iso/iso8601)
-	// , when the AMI was last used to launch an EC2 instance. When the AMI is used to
-	// launch an instance, there is a 24-hour delay before that usage is reported.
+	// The date and time, in [ISO 8601 date-time format], when the AMI was last used to launch an EC2 instance.
+	// When the AMI is used to launch an instance, there is a 24-hour delay before that
+	// usage is reported.
+	//
 	// lastLaunchedTime data is available starting April 2017.
+	//
+	// [ISO 8601 date-time format]: http://www.iso.org/iso/iso8601
 	LastLaunchedTime *types.AttributeValue
 
 	// The launch permissions.
@@ -101,11 +114,12 @@ type DescribeImageAttributeOutput struct {
 	TpmSupport *types.AttributeValue
 
 	// Base64 representation of the non-volatile UEFI variable store. To retrieve the
-	// UEFI data, use the GetInstanceUefiData (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_GetInstanceUefiData)
-	// command. You can inspect and modify the UEFI data by using the python-uefivars
-	// tool (https://github.com/awslabs/python-uefivars) on GitHub. For more
-	// information, see UEFI Secure Boot (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/uefi-secure-boot.html)
-	// in the Amazon EC2 User Guide.
+	// UEFI data, use the [GetInstanceUefiData]command. You can inspect and modify the UEFI data by using
+	// the [python-uefivars tool]on GitHub. For more information, see [UEFI Secure Boot for Amazon EC2 instances] in the Amazon EC2 User Guide.
+	//
+	// [UEFI Secure Boot for Amazon EC2 instances]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/uefi-secure-boot.html
+	// [GetInstanceUefiData]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_GetInstanceUefiData
+	// [python-uefivars tool]: https://github.com/awslabs/python-uefivars
 	UefiData *types.AttributeValue
 
 	// Metadata pertaining to the operation's result.
@@ -115,6 +129,9 @@ type DescribeImageAttributeOutput struct {
 }
 
 func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsEc2query_serializeOpDescribeImageAttribute{}, middleware.After)
 	if err != nil {
 		return err
@@ -123,34 +140,41 @@ func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeImageAttribute"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -159,13 +183,25 @@ func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeImageAttributeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeImageAttribute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -177,6 +213,18 @@ func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -184,7 +232,6 @@ func newServiceMetadataMiddleware_opDescribeImageAttribute(region string) *awsmi
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "ec2",
 		OperationName: "DescribeImageAttribute",
 	}
 }
