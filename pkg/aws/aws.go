@@ -256,6 +256,7 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 
 	input := &ec2.DescribeImagesInput{
 		Owners: []string{
+			"099720109477",
 			"amazon",
 			"self",
 		},
@@ -287,7 +288,7 @@ func GetDefaultAMI(ctx context.Context, cfg aws.Config, instanceType string) (st
 			{
 				Name: aws.String("description"),
 				Values: []string{
-					"Canonical, Ubuntu, 22.04 LTS*",
+					"Canonical, Ubuntu, 22.04*",
 				},
 			},
 		},
