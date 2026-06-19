@@ -23,6 +23,7 @@ optionGroups:
       - AWS_USE_SPOT_INSTANCE
       - AWS_USE_SESSION_MANAGER
       - AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER
+      - AWS_USER_DATA
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -250,6 +251,9 @@ options:
     default: false
   AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER:
     description: "Specify the KMS key ARN to use for the AWS Session Manager"
+    default: ""
+  AWS_USER_DATA:
+    description: "Custom shell script to run as EC2 user data when the instance launches. It is appended to the DevPod bootstrap script and executed during boot."
     default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.

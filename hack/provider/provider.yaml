@@ -26,6 +26,7 @@ optionGroups:
       - AWS_USE_ROUTE53
       - AWS_ROUTE53_ZONE_NAME
       - AWS_AVAILABILITY_ZONE
+      - AWS_USER_DATA
     name: "AWS options"
     defaultVisible: false
   - options:
@@ -267,6 +268,9 @@ options:
     default: false
   AWS_ROUTE53_ZONE_NAME:
     description: "The zone name of a Route53 hosted zone to use for the machine's DNS name"
+    default: ""
+  AWS_USER_DATA:
+    description: "Custom shell script to run as EC2 user data when the instance launches. It is appended to the DevPod bootstrap script and executed during boot."
     default: ""
   INACTIVITY_TIMEOUT:
     description: If defined, will automatically stop the VM after the inactivity period.

@@ -47,6 +47,7 @@ This provider has the following options
 | AWS_SUBNET_ID         | false | The subnet ID for the VM | created if not specified |
 | AWS_INSTANCE_TAGS     | false | Additional flags for the VM in the form of "Name=XXX,Value=YYY " | |
 | AWS_INSTANCE_PROFILE_ARN  | false | The ARN of the instance profile to use for the VM | created if not specified |
+| AWS_USER_DATA         | false | Custom shell script run as EC2 user data on launch. Appended to the DevPod bootstrap script and executed during boot. | |
 
 You will need an user profile able to:
     - Create/Start/Stop/Destroy instances
