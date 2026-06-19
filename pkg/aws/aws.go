@@ -789,7 +789,7 @@ func Create(
 
 	volSizeI32 := int32(providerAws.Config.DiskSizeGB)
 
-	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder)
+	userData, err := GetInjectKeypairScript(providerAws.Config.MachineFolder, providerAws.Config.UserData)
 	if err != nil {
 		return Machine{}, err
 	}
@@ -958,7 +958,7 @@ func Delete(ctx context.Context, provider *AwsProvider, machine Machine) error {
 	return nil
 }
 
-func GetInjectKeypairScript(dir string) (string, error) {
+func GetInjectKeypairScript(dir, customUserData string) (string, error) {
 	publicKeyBase, err := ssh.GetPublicKeyBase(dir)
 	if err != nil {
 		return "", err
@@ -983,6 +983,12 @@ echo "` + string(publicKey) + `" >> /home/devpod/.ssh/authorized_keys
 chmod 0700 /home/devpod/.ssh
 chmod 0600 /home/devpod/.ssh/authorized_keys
 chown -R devpod:devpod /home/devpod`
+
+	// Append any custom user data provided via AWS_USER_DATA so that it runs as
+	// part of the same boot script, after the devpod keypair has been injected.
+	if customUserData != "" {
+		resultScript += "\n" + customUserData
+	}
 
 	return base64.StdEncoding.EncodeToString([]byte(resultScript)), nil
 }

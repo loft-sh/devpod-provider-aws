@@ -26,6 +26,7 @@ var (
 	AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER = "AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER"
 	AWS_USE_ROUTE53                     = "AWS_USE_ROUTE53"
 	AWS_ROUTE53_ZONE_NAME               = "AWS_ROUTE53_ZONE_NAME"
+	AWS_USER_DATA                       = "AWS_USER_DATA"
 	CUSTOM_AWS_CREDENTIAL_COMMAND       = "CUSTOM_AWS_CREDENTIAL_COMMAND"
 )
 
@@ -50,6 +51,7 @@ type Options struct {
 	KmsKeyARNForSessionManager string
 	UseRoute53Hostnames        bool
 	Route53ZoneName            string
+	UserData                   string
 	CustomCredentialCommand    string
 }
 
@@ -89,6 +91,7 @@ func FromEnv(init, withFolder bool) (*Options, error) {
 	retOptions.KmsKeyARNForSessionManager = os.Getenv(AWS_KMS_KEY_ARN_FOR_SESSION_MANAGER)
 	retOptions.UseRoute53Hostnames = os.Getenv(AWS_USE_ROUTE53) == "true"
 	retOptions.Route53ZoneName = os.Getenv(AWS_ROUTE53_ZONE_NAME)
+	retOptions.UserData = os.Getenv(AWS_USER_DATA)
 
 	subnetIDs := os.Getenv(AWS_SUBNET_ID)
 	if subnetIDs != "" {
